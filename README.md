@@ -2,10 +2,10 @@
 
 ## Overview
 
-- AES GCM
-   - commit ??
-- Randome number generator
-   - commit ?? 
+This shows some tutorial codes for the following:
+- Random number generation.
+- AES GCM.
+- ?
 
 ## NET CLI commands
 
