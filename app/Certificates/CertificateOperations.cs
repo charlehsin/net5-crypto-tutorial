@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -22,7 +23,8 @@ namespace app.Certificates
                 $"public key: {cert.GetPublicKeyString()}{Environment.NewLine}" +
                 $"thumbprint: {cert.Thumbprint}{Environment.NewLine}" +
                 $"hash: {cert.GetCertHashString()}{Environment.NewLine}" +
-                $"expiration: {cert.GetExpirationDateString()}{Environment.NewLine}";
+                $"expiration: {cert.GetExpirationDateString()}{Environment.NewLine}" +
+                $"private key?: {cert.HasPrivateKey}{Environment.NewLine}";
 
             foreach (var extension in cert.Extensions)
             {
@@ -56,6 +58,12 @@ namespace app.Certificates
                     {
                         info += $"{oid.FriendlyName}({oid.Value}){Environment.NewLine}";
                     }
+                }
+
+                if (extension.Oid.FriendlyName == "Subject Alternative Name")
+                {
+                    var asndata = new AsnEncodedData(extension.Oid, extension.RawData);
+                    info += $"{asndata.Format(true)}{Environment.NewLine}";
                 }
             }
 
@@ -95,6 +103,11 @@ namespace app.Certificates
                     request.PublicKey/*subjectKeyIdentifier*/,
                     false/*critical*/));
 
+                var subjectAlternativeNameBuilder = new SubjectAlternativeNameBuilder();
+                subjectAlternativeNameBuilder.AddDnsName("test.com");
+                subjectAlternativeNameBuilder.AddIpAddress(IPAddress.Loopback);
+                request.CertificateExtensions.Add(subjectAlternativeNameBuilder.Build());
+
                 return request.CreateSelfSigned(notBefore, notAfter);
             }
         }
@@ -109,10 +122,12 @@ namespace app.Certificates
         /// <param name="oidCollection"></param>
         /// <param name="notBefore"></param>
         /// <param name="notAfter"></param>
+        /// <param name="includePrivateKey"></param>
         /// <returns>X509Certificate2</returns>
         public X509Certificate2 IssueSignedCert(X509Certificate2 parentCert, int keySize, string commonName,
             X509KeyUsageFlags flags, OidCollection oidCollection,
-            System.DateTimeOffset notBefore, System.DateTimeOffset notAfter)
+            System.DateTimeOffset notBefore, System.DateTimeOffset notAfter,
+            bool includePrivateKey)
         {
             using (var rsa = RSA.Create(keySize))
             {
@@ -140,9 +155,81 @@ namespace app.Certificates
                     request.PublicKey/*subjectKeyIdentifier*/,
                     false/*critical*/));
 
+                var subjectAlternativeNameBuilder = new SubjectAlternativeNameBuilder();
+                subjectAlternativeNameBuilder.AddDnsName("test.com");
+                subjectAlternativeNameBuilder.AddIpAddress(IPAddress.Loopback);
+                request.CertificateExtensions.Add(subjectAlternativeNameBuilder.Build());
+
                 var serialNumber = new byte[SerialNumberSizeInBytes];
                 RandomNumberGenerator.Fill(serialNumber);
-                return request.Create(parentCert, notBefore, notAfter, serialNumber);
+                var cert = request.Create(parentCert, notBefore, notAfter, serialNumber);
+                if (!includePrivateKey)
+                {
+                    return cert;
+                }
+                
+                var certWithPrivateKey = cert.CopyWithPrivateKey(rsa);
+                cert.Dispose();
+                return certWithPrivateKey;
+            }
+        }
+
+        /// <summary>
+        /// Get a certificate with the target key storage flags based on the original cert.
+        /// </summary>
+        /// <param name="cert"></param>
+        /// <param name="flags"></param>
+        /// <returns>X509Certificate2</returns>
+        public X509Certificate2 GetCertWithStorageFlags(X509Certificate2 cert, X509KeyStorageFlags flags)
+        {
+            return new X509Certificate2(
+                cert.Export(X509ContentType.Pkcs12),
+                string.Empty, flags
+            );
+        }
+
+        /// <summary>
+        /// Validate the cert chain.
+        /// </summary>
+        /// <param name="cert"></param>
+        /// <param name="parentCert"></param>
+        /// <param name="revocationMode"></param>
+        /// <param name="revocationFlag"></param>
+        /// <returns>(valid or not, the chain status array)</returns>
+        public (bool, X509ChainStatus[]) ValidateCertificateChain(X509Certificate2 cert, X509Certificate2 parentCert,
+            X509RevocationMode revocationMode, X509RevocationFlag revocationFlag)
+        {
+            using (var chain = new X509Chain())
+            {
+                chain.ChainPolicy.RevocationMode = revocationMode;
+                chain.ChainPolicy.RevocationFlag = revocationFlag;
+
+                if (parentCert != null)
+                {
+                    // If the parent cert is not trusted, we need to trust it manually.
+                    chain.ChainPolicy.ExtraStore.Add(parentCert);
+                    chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+                    chain.ChainPolicy.CustomTrustStore.Clear();
+                    chain.ChainPolicy.CustomTrustStore.Add(parentCert);
+                }
+
+                if (!chain.Build(cert))
+                {
+                    return (false, chain.ChainStatus);
+                }
+
+                // Do further checking to make sure that there is matching thumbprint in the cert chain with our parent cert.                
+                var isValid = false;
+                foreach (var element in chain.ChainElements)
+                {
+                    if(element.Certificate.Thumbprint.Equals(parentCert.Thumbprint, StringComparison.OrdinalIgnoreCase))
+                    {
+                        isValid = true;
+                        break;
+                    }
+                }
+
+                return (isValid, chain.ChainStatus);
             }
         }
     }

@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using app.Certificates;
+using app.CertificateStore;
 using app.EncryptionDecryption;
 
 namespace app
@@ -12,11 +13,27 @@ namespace app
     {
         static void Main(string[] args)
         {
-            TryAesGcm();
-            TryCreateCertificates();
+            Console.Write("Enter 1 to try AES GCM.");
+            Console.Write($"{Environment.NewLine}Enter 2 to try creating certificates.");
+            Console.Write($"{Environment.NewLine}Enter 3 to try cert store operations.");
+            Console.Write($"{Environment.NewLine}Enter an integer: ");
 
-            Console.Write($"{Environment.NewLine}Press any key to exit...");
-            Console.ReadKey(true);
+            var userInput = Console.ReadLine();
+            if (int.TryParse(userInput, out var userInputNumber))
+            {
+                switch (userInputNumber)
+                {
+                    case 1:
+                        TryAesGcm();
+                        break;
+                    case 2:
+                        TryCreateCertificates();
+                        break;
+                    case 3:
+                        TryCertStoreOperations();
+                        break;
+                }
+            }
         }
 
         /// <summary>
@@ -71,7 +88,7 @@ namespace app
             using (var cert = certificateOperations.IssueSignedCert(rootCert, CertificateOperations.KeySizeInBits, "A test TLS cert",
                 X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation | X509KeyUsageFlags.KeyEncipherment,
                 new OidCollection { new Oid("1.3.6.1.5.5.7.3.1")/*id-kp-serverAuth*/ },
-                notBefore, notAfter))
+                notBefore, notAfter, true))
             {
                 Console.WriteLine("Parent cert info:");
                 Console.WriteLine($"{certificateOperations.GetCertInfo(rootCert)}");
@@ -82,8 +99,80 @@ namespace app
 
                 Console.WriteLine("Cert info:");
                 Console.WriteLine($"{certificateOperations.GetCertInfo(cert)}");
+
+                Console.WriteLine("Validate cert chain:");
+                (var isValid, var chainStatusArray) = certificateOperations.ValidateCertificateChain(cert, rootCert,
+                    X509RevocationMode.NoCheck, X509RevocationFlag.EndCertificateOnly);
+                Console.Write($"{isValid} ");
+                foreach (var status in chainStatusArray)
+                {
+                    Console.Write($"{status.StatusInformation} ");
+                }
+                Console.WriteLine(string.Empty);
             }
             Console.Write($"{Environment.NewLine}Press any key to finish creating certificates...");
+            Console.ReadKey(true);
+        }
+
+        /// <summary>
+        /// Try cert store operations.
+        /// </summary>
+        private static void TryCertStoreOperations()
+        {
+            const string cannotFindCert = "Cannot find the cert.";
+            const string foundCert = "Found the cert by name.";
+            const string cannotFindCertByThumbprint = "Cannot find the cert by thumbprint.";
+            const string foundCertByThumbprint = "Found the cert by thumbprint.";
+
+            Console.Write($"{Environment.NewLine}Press any key to start cert store operations...");
+            Console.ReadKey(true);
+            Console.WriteLine($"{Environment.NewLine}");
+
+            var notBefore = DateTimeOffset.UtcNow.AddDays(-45);
+            var notAfter = DateTimeOffset.UtcNow.AddDays(365);
+            var certificateOperations = new CertificateOperations();
+            using (var rootCert = certificateOperations.CreateSelfSignedCert(CertificateOperations.KeySizeInBits, "A test root",
+                notBefore, notAfter))
+            using (var cert = certificateOperations.IssueSignedCert(rootCert, CertificateOperations.KeySizeInBits, "A test TLS cert",
+                X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation | X509KeyUsageFlags.KeyEncipherment,
+                new OidCollection { new Oid("1.3.6.1.5.5.7.3.1")/*id-kp-serverAuth*/ },
+                notBefore, notAfter, true))
+            using (var newCert = certificateOperations.GetCertWithStorageFlags(cert,
+                    X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable))
+            {
+                var certStoreOperations = new CertificateStoreOperations();
+                var targetCert = certStoreOperations.FindNotExpiredCertFromCertStoreByName("CN=A test TLS cert",
+                    StoreLocation.LocalMachine, StoreName.My);
+                Console.WriteLine($"{(targetCert == null ? cannotFindCert : foundCert)}");
+                targetCert?.Dispose();
+                targetCert = certStoreOperations.FindNotExpiredCertFromCertStoreByThumbprint(newCert.Thumbprint,
+                    StoreLocation.LocalMachine, StoreName.My);
+                Console.WriteLine($"{(targetCert == null ? cannotFindCertByThumbprint : foundCertByThumbprint)}");
+                targetCert?.Dispose();
+
+                Console.WriteLine($"Add the cert into cert store.");
+                certStoreOperations.AddCertificateIntoCertStore(newCert, StoreLocation.LocalMachine, StoreName.My);
+                targetCert = certStoreOperations.FindNotExpiredCertFromCertStoreByName("CN=A test TLS cert",
+                    StoreLocation.LocalMachine, StoreName.My);
+                Console.WriteLine($"{(targetCert == null ? cannotFindCert : foundCert)}");
+                targetCert?.Dispose();          
+                targetCert = certStoreOperations.FindNotExpiredCertFromCertStoreByThumbprint(newCert.Thumbprint,
+                    StoreLocation.LocalMachine, StoreName.My);
+                Console.WriteLine($"{(targetCert == null ? cannotFindCertByThumbprint : foundCertByThumbprint)}");
+                targetCert?.Dispose();
+
+                Console.WriteLine($"Remove the cert from cert store.");
+                certStoreOperations.RemoveCertificateFromCertStore(newCert, StoreLocation.LocalMachine, StoreName.My);
+                targetCert = certStoreOperations.FindNotExpiredCertFromCertStoreByName("CN=A test TLS cert",
+                    StoreLocation.LocalMachine, StoreName.My);
+                Console.WriteLine($"{(targetCert == null ? cannotFindCert : foundCert)}");
+                targetCert?.Dispose();
+                targetCert = certStoreOperations.FindNotExpiredCertFromCertStoreByThumbprint(newCert.Thumbprint,
+                    StoreLocation.LocalMachine, StoreName.My);
+                Console.WriteLine($"{(targetCert == null ? cannotFindCertByThumbprint : foundCertByThumbprint)}");
+                targetCert?.Dispose();
+            }
+            Console.Write($"{Environment.NewLine}Press any key to finish cert store operations...");
             Console.ReadKey(true);
         }
     }
