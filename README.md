@@ -8,6 +8,7 @@ This shows some tutorial codes for the following:
 - Asymmetric RSA encryption and decryption
 - Certificate operations
 - Certificate store operations
+- Signature
 
 ## NET CLI commands
 
@@ -50,3 +51,9 @@ This shows some tutorial codes for the following:
 
 - https://stackoverflow.com/questions/66640533/how-to-provide-x509keystorageflags-to-certificaterequest 
 - https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.x509certificates.x509store.open?view=net-5.0
+
+### Signature
+
+- https://docs.microsoft.com/en-us/dotnet/standard/security/cryptographic-signatures
+- https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.pkcs.signedcms?view=windowsdesktop-5.0
+- https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.pkcs.cmssigner?view=windowsdesktop-5.0

@@ -6,6 +6,7 @@ using System.Text;
 using app.Certificates;
 using app.CertificateStore;
 using app.EncryptionDecryption;
+using app.Signature;
 
 namespace app
 {
@@ -17,6 +18,7 @@ namespace app
             Console.Write($"{Environment.NewLine}Enter 2 to try asymmetric RSA encryption/decryption.");
             Console.Write($"{Environment.NewLine}Enter 3 to try creating certificates.");
             Console.Write($"{Environment.NewLine}Enter 4 to try cert store operations.");
+            Console.Write($"{Environment.NewLine}Enter 5 to try RSA PKCS1 signature.");
             Console.Write($"{Environment.NewLine}Enter an integer: ");
 
             var userInput = Console.ReadLine();
@@ -35,6 +37,9 @@ namespace app
                         break;
                     case 4:
                         TryCertStoreOperations();
+                        break;
+                    case 5:
+                        TryRsaPkcs1Signature();
                         break;
                 }
             }
@@ -209,6 +214,46 @@ namespace app
                 targetCert?.Dispose();
             }
             Console.Write($"{Environment.NewLine}Press any key to finish cert store operations...");
+            Console.ReadKey(true);
+        }
+
+        /// <summary>
+        /// Try RSA PKCS1 signature.
+        /// </summary>
+        private static void TryRsaPkcs1Signature()
+        {
+            Console.Write($"{Environment.NewLine}Press any key to start RSA PKCS1 signature...");
+            Console.ReadKey(true);
+            Console.WriteLine($"{Environment.NewLine}");
+
+            var notBefore = DateTimeOffset.UtcNow.AddDays(-45);
+            var notAfter = DateTimeOffset.UtcNow.AddDays(365);
+            var certificateOperations = new CertificateOperations();
+            using (var rootCert = certificateOperations.CreateSelfSignedCert(CertificateOperations.KeySizeInBits, "A test root",
+                notBefore, notAfter))
+            {
+                var originalData = new byte[50];
+                RandomNumberGenerator.Fill(originalData); 
+
+                var rsaPkcs1Signer = new RsaPkcs1Signer();
+
+                var originalHash = rsaPkcs1Signer.GetSha512Hash(originalData);
+
+                var signedHash = rsaPkcs1Signer.Sign(rootCert.GetRSAPrivateKey(),
+                    RsaPkcs1Signer.SHA512HashAlgorithm, originalHash);
+
+                var isValid = rsaPkcs1Signer.Verify(rootCert.GetRSAPublicKey(), RsaPkcs1Signer.SHA512HashAlgorithm,
+                    originalHash, signedHash);
+                Console.WriteLine($"Signed hash is not changed. Is the signature valid? {isValid}");
+
+                signedHash[2] = 0x2;
+                signedHash[3] = 0x2;
+                isValid = rsaPkcs1Signer.Verify(rootCert.GetRSAPublicKey(), RsaPkcs1Signer.SHA512HashAlgorithm,
+                    originalHash, signedHash);
+                Console.WriteLine($"Signed hash is changed. Is the signature valid? {isValid}");
+            }
+
+            Console.Write($"{Environment.NewLine}Press any key to finish RSA PKCS1 signature...");
             Console.ReadKey(true);
         }
     }

@@ -5,9 +5,9 @@ namespace app.EncryptionDecryption
     public class RsaOperations
     {
         /// <summary>
-        /// Encrypt the target.
+        /// Encrypt the target with public key.
         /// </summary>
-        /// <param name="rsa"></param>
+        /// <param name="rsa">public key</param>
         /// <param name="target"></param>
         /// <returns>cipher byte array</returns>/
         public byte[] Encrypt(RSA rsa, byte[] target)
@@ -16,9 +16,9 @@ namespace app.EncryptionDecryption
         }
         
         /// <summary>
-        /// Decrypt the cipher.
+        /// Decrypt the cipher with private key.
         /// </summary>
-        /// <param name="rsa"></param>
+        /// <param name="rsa">private key</param>
         /// <param name="cipher"></param>
         /// <returns>decrypted result.</returns>/
         public byte[] Decrypt(RSA rsa, byte[] cipher)
