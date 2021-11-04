@@ -15,6 +15,10 @@ This shows some tutorial codes for the following:
 - dotnet new console --framework net5.0
 - dotnet run
 
+### Extra packages
+
+- (For CmsSigner) dotnet add package System.Security.Cryptography.Pkcs --version 5.0.1
+
 ## References
 
 ### General

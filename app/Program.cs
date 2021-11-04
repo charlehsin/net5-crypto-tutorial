@@ -19,6 +19,7 @@ namespace app
             Console.Write($"{Environment.NewLine}Enter 3 to try creating certificates.");
             Console.Write($"{Environment.NewLine}Enter 4 to try cert store operations.");
             Console.Write($"{Environment.NewLine}Enter 5 to try RSA PKCS1 signature.");
+            Console.Write($"{Environment.NewLine}Enter 6 to try CMS PKCS7 signature.");
             Console.Write($"{Environment.NewLine}Enter an integer: ");
 
             var userInput = Console.ReadLine();
@@ -40,6 +41,9 @@ namespace app
                         break;
                     case 5:
                         TryRsaPkcs1Signature();
+                        break;
+                    case 6:
+                        TryCmsPkcs7Signature();
                         break;
                 }
             }
@@ -254,6 +258,40 @@ namespace app
             }
 
             Console.Write($"{Environment.NewLine}Press any key to finish RSA PKCS1 signature...");
+            Console.ReadKey(true);
+        }
+
+        /// <summary>
+        /// Try CMS PKCS7 signature.
+        /// </summary>
+        private static void TryCmsPkcs7Signature()
+        {
+            Console.Write($"{Environment.NewLine}Press any key to start CMS PKCS7 signature...");
+            Console.ReadKey(true);
+            Console.WriteLine($"{Environment.NewLine}");
+
+            var notBefore = DateTimeOffset.UtcNow.AddDays(-45);
+            var notAfter = DateTimeOffset.UtcNow.AddDays(365);
+            var certificateOperations = new CertificateOperations();
+            using (var rootCert = certificateOperations.CreateSelfSignedCert(CertificateOperations.KeySizeInBits, "A test root",
+                notBefore, notAfter))
+            {
+                var originalMessage = new byte[50];
+                RandomNumberGenerator.Fill(originalMessage); 
+
+                var cmsPkcs7Signer = new CmsPkcs7Signer();
+                var encodedMessage = cmsPkcs7Signer.Sign(rootCert, originalMessage);
+
+                var isValid = cmsPkcs7Signer.Verify(encodedMessage, out _, out _);
+                Console.WriteLine($"Encoded message is not changed. Is the signature valid? {isValid}");
+                
+                encodedMessage[2] = 0x2;
+                encodedMessage[3] = 0x2;
+                isValid = cmsPkcs7Signer.Verify(encodedMessage, out _, out _);
+                Console.WriteLine($"Encoded message is changed. Is the signature valid? {isValid}");
+            }
+
+            Console.Write($"{Environment.NewLine}Press any key to finish CMS PKCS7 signature...");
             Console.ReadKey(true);
         }
     }
