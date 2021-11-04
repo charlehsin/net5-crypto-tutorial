@@ -13,9 +13,10 @@ namespace app
     {
         static void Main(string[] args)
         {
-            Console.Write("Enter 1 to try AES GCM.");
-            Console.Write($"{Environment.NewLine}Enter 2 to try creating certificates.");
-            Console.Write($"{Environment.NewLine}Enter 3 to try cert store operations.");
+            Console.Write("Enter 1 to try symmetric AES GCM encryption/decryption.");
+            Console.Write($"{Environment.NewLine}Enter 2 to try asymmetric RSA encryption/decryption.");
+            Console.Write($"{Environment.NewLine}Enter 3 to try creating certificates.");
+            Console.Write($"{Environment.NewLine}Enter 4 to try cert store operations.");
             Console.Write($"{Environment.NewLine}Enter an integer: ");
 
             var userInput = Console.ReadLine();
@@ -27,9 +28,12 @@ namespace app
                         TryAesGcm();
                         break;
                     case 2:
-                        TryCreateCertificates();
+                        TryRsa();
                         break;
                     case 3:
+                        TryCreateCertificates();
+                        break;
+                    case 4:
                         TryCertStoreOperations();
                         break;
                 }
@@ -37,11 +41,11 @@ namespace app
         }
 
         /// <summary>
-        /// Try AES GCM operations.
+        /// Try AES GCM encryption/decryption.
         /// </summary>
         private static void TryAesGcm()
         {
-            const string originalTest = "This is a test.";
+            const string originalText = "This is a test.";
 
             Console.Write($"{Environment.NewLine}Press any key to start AES GCM...");
             Console.ReadKey(true);
@@ -49,18 +53,19 @@ namespace app
 
             var aesGcmOperations = new AesGcmOperations();
 
-            var key = aesGcmOperations.GenerateKey();
+            var key = aesGcmOperations.GenerateKey(AesGcmOperations.KeyLengthInBytes);
 
             var result = aesGcmOperations.Encrypt(key,
-                Encoding.UTF8.GetBytes(originalTest));
+                Encoding.UTF8.GetBytes(originalText),
+                AesGcmOperations.NonceLengthInBytes, AesGcmOperations.TagLengthInBytes);
 
-            var nonce = result.Skip(0).Take(AesGcmOperations.NonceLength).ToArray();
-            var tag = result.Skip(AesGcmOperations.NonceLength)
-                .Take(AesGcmOperations.TagLength).ToArray();
-            var cipher = result.Skip(AesGcmOperations.NonceLength + AesGcmOperations.TagLength).ToArray();
+            var nonce = result.Skip(0).Take(AesGcmOperations.NonceLengthInBytes).ToArray();
+            var tag = result.Skip(AesGcmOperations.NonceLengthInBytes)
+                .Take(AesGcmOperations.TagLengthInBytes).ToArray();
+            var cipher = result.Skip(AesGcmOperations.NonceLengthInBytes + AesGcmOperations.TagLengthInBytes).ToArray();
             var decrypted = aesGcmOperations.Decrypt(cipher, key, nonce, tag);
 
-            Console.WriteLine($"original text: {originalTest}");
+            Console.WriteLine($"original text: {originalText}");
             Console.WriteLine($"key length: {key.Length}");
             Console.WriteLine($"nonce length: {nonce.Length}");
             Console.WriteLine($"tag length: {tag.Length}");
@@ -70,7 +75,38 @@ namespace app
             Console.Write($"{Environment.NewLine}Press any key to finish AES GCM...");
             Console.ReadKey(true);
         }
-    
+
+        /// <summary>
+        /// Try RSA encryption/decryption.
+        /// </summary>
+        private static void TryRsa()
+        {
+            const string originalText = "This is a test.";
+            var decryptedText = string.Empty;
+
+            Console.Write($"{Environment.NewLine}Press any key to start RSA...");
+            Console.ReadKey(true);
+            Console.WriteLine($"{Environment.NewLine}");
+
+            var notBefore = DateTimeOffset.UtcNow.AddDays(-45);
+            var notAfter = DateTimeOffset.UtcNow.AddDays(365);
+            var certificateOperations = new CertificateOperations();
+            using (var rootCert = certificateOperations.CreateSelfSignedCert(CertificateOperations.KeySizeInBits, "A test root",
+                notBefore, notAfter))
+            {
+                var rsaOperations = new RsaOperations();
+                var cipher = rsaOperations.Encrypt(rootCert.GetRSAPublicKey(), Encoding.UTF8.GetBytes(originalText));
+                var decrypted = rsaOperations.Decrypt(rootCert.GetRSAPrivateKey(), cipher);
+                decryptedText = Encoding.UTF8.GetString(decrypted);
+            }        
+
+            Console.WriteLine($"original text: {originalText}");
+            Console.WriteLine($"decrypted text: {decryptedText}");
+            
+            Console.Write($"{Environment.NewLine}Press any key to finish RSA...");
+            Console.ReadKey(true);
+        }
+
         /// <summary>
         /// Try creating certificates.
         /// </summary>
@@ -155,7 +191,7 @@ namespace app
                 targetCert = certStoreOperations.FindNotExpiredCertFromCertStoreByName("CN=A test TLS cert",
                     StoreLocation.LocalMachine, StoreName.My);
                 Console.WriteLine($"{(targetCert == null ? cannotFindCert : foundCert)}");
-                targetCert?.Dispose();          
+                targetCert?.Dispose();
                 targetCert = certStoreOperations.FindNotExpiredCertFromCertStoreByThumbprint(newCert.Thumbprint,
                     StoreLocation.LocalMachine, StoreName.My);
                 Console.WriteLine($"{(targetCert == null ? cannotFindCertByThumbprint : foundCertByThumbprint)}");

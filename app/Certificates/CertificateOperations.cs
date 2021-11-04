@@ -190,6 +190,7 @@ namespace app.Certificates
 
         /// <summary>
         /// Validate the cert chain.
+        /// If parentCert is not null, it will be added to the customer trusted store to be used in validation.
         /// </summary>
         /// <param name="cert"></param>
         /// <param name="parentCert"></param>

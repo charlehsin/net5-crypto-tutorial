@@ -4,7 +4,8 @@
 
 This shows some tutorial codes for the following:
 - Random number generation
-- AES GCM encryption and decryption
+- Symmetric AES GCM encryption and decryption
+- Asymmetric RSA encryption and decryption
 - Certificate operations
 - Certificate store operations
 
@@ -18,11 +19,15 @@ This shows some tutorial codes for the following:
 ### General
 
 - https://docs.microsoft.com/en-us/dotnet/core/tutorials/with-visual-studio-code?pivots=dotnet-5-0
+- https://docs.microsoft.com/en-us/dotnet/standard/security/cryptography-model
+- https://docs.microsoft.com/en-us/dotnet/standard/security/cross-platform-cryptography 
 
 ### Encryption and decryption
 
 - https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.aesgcm?view=net-5.0
 - https://www.scottbrady91.com/c-sharp/aes-gcm-dotnet
+- https://docs.microsoft.com/en-us/dotnet/standard/security/encrypting-data 
+- https://damienbod.com/2020/08/19/symmetric-and-asymmetric-encryption-in-net-core/ 
 
 ### Random number
 
