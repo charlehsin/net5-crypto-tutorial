@@ -107,11 +107,11 @@ namespace app
                 var cipher = rsaOperations.Encrypt(rootCert.GetRSAPublicKey(), Encoding.UTF8.GetBytes(originalText));
                 var decrypted = rsaOperations.Decrypt(rootCert.GetRSAPrivateKey(), cipher);
                 decryptedText = Encoding.UTF8.GetString(decrypted);
-            }        
+            }
 
             Console.WriteLine($"original text: {originalText}");
             Console.WriteLine($"decrypted text: {decryptedText}");
-            
+
             Console.Write($"{Environment.NewLine}Press any key to finish RSA...");
             Console.ReadKey(true);
         }
@@ -237,7 +237,7 @@ namespace app
                 notBefore, notAfter))
             {
                 var originalData = new byte[50];
-                RandomNumberGenerator.Fill(originalData); 
+                RandomNumberGenerator.Fill(originalData);
 
                 var rsaPkcs1Signer = new RsaPkcs1Signer();
 
@@ -277,14 +277,14 @@ namespace app
                 notBefore, notAfter))
             {
                 var originalMessage = new byte[50];
-                RandomNumberGenerator.Fill(originalMessage); 
+                RandomNumberGenerator.Fill(originalMessage);
 
                 var cmsPkcs7Signer = new CmsPkcs7Signer();
                 var encodedMessage = cmsPkcs7Signer.Sign(rootCert, originalMessage);
 
                 var isValid = cmsPkcs7Signer.Verify(encodedMessage, out _, out _);
                 Console.WriteLine($"Encoded message is not changed. Is the signature valid? {isValid}");
-                
+
                 encodedMessage[2] = 0x2;
                 encodedMessage[3] = 0x2;
                 isValid = cmsPkcs7Signer.Verify(encodedMessage, out _, out _);

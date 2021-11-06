@@ -4,7 +4,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
 namespace app.Certificates
-{    
+{
     public class CertificateOperations
     {
         public const int KeySizeInBits = 4096;
@@ -88,17 +88,17 @@ namespace app.Certificates
                     rsa,
                     HashAlgorithmName.SHA512,
                     RSASignaturePadding.Pkcs1);
-                
+
                 request.CertificateExtensions.Add(new X509BasicConstraintsExtension(
                     true/*certificateAuthority*/,
                     false/*hasPathLengthConstraint*/,
                     0/*pathLengthConstraint*/,
-                    true/*critical*/));             
-                
+                    true/*critical*/));
+
                 request.CertificateExtensions.Add(new X509KeyUsageExtension(
                     X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign/*keyUsages*/,
                     false/*critical*/));
-                
+
                 request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(
                     request.PublicKey/*subjectKeyIdentifier*/,
                     false/*critical*/));
@@ -136,7 +136,7 @@ namespace app.Certificates
                     rsa,
                     HashAlgorithmName.SHA512,
                     RSASignaturePadding.Pkcs1);
-                
+
                 request.CertificateExtensions.Add(new X509BasicConstraintsExtension(
                     false/*certificateAuthority*/,
                     false/*hasPathLengthConstraint*/,
@@ -148,7 +148,7 @@ namespace app.Certificates
                     false/*critical*/));
 
                 request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(
-                    oidCollection/*oidCollection*/, 
+                    oidCollection/*oidCollection*/,
                     true/*critical*/));
 
                 request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(
@@ -167,7 +167,7 @@ namespace app.Certificates
                 {
                     return cert;
                 }
-                
+
                 var certWithPrivateKey = cert.CopyWithPrivateKey(rsa);
                 cert.Dispose();
                 return certWithPrivateKey;
@@ -219,11 +219,11 @@ namespace app.Certificates
                     return (false, chain.ChainStatus);
                 }
 
-                // Do further checking to make sure that there is matching thumbprint in the cert chain with our parent cert.                
+                // Do further checking to make sure that there is matching thumbprint in the cert chain with our parent cert.
                 var isValid = false;
                 foreach (var element in chain.ChainElements)
                 {
-                    if(element.Certificate.Thumbprint.Equals(parentCert.Thumbprint, StringComparison.OrdinalIgnoreCase))
+                    if (element.Certificate.Thumbprint.Equals(parentCert.Thumbprint, StringComparison.OrdinalIgnoreCase))
                     {
                         isValid = true;
                         break;

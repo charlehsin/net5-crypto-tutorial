@@ -11,10 +11,10 @@ namespace app.EncryptionDecryption
         /// <param name="target"></param>
         /// <returns>cipher byte array</returns>/
         public byte[] Encrypt(RSA rsa, byte[] target)
-        {            
+        {
             return rsa.Encrypt(target, RSAEncryptionPadding.Pkcs1);
         }
-        
+
         /// <summary>
         /// Decrypt the cipher with private key.
         /// </summary>

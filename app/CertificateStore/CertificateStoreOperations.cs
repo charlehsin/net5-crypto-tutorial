@@ -22,7 +22,7 @@ namespace app.CertificateStore
                 store.Open(OpenFlags.ReadOnly);
 
                 var certCollection = store.Certificates;
-                
+
                 // Find all not-expired certs first.
                 var currentCerts = certCollection.Find(X509FindType.FindByTimeValid, DateTime.Now, false);
 
@@ -60,7 +60,7 @@ namespace app.CertificateStore
                 store.Open(OpenFlags.ReadOnly);
 
                 var certCollection = store.Certificates;
-                
+
                 // Find all not-expired certs first.
                 var currentCerts = certCollection.Find(X509FindType.FindByTimeValid, DateTime.Now, false);
 
@@ -94,7 +94,7 @@ namespace app.CertificateStore
             try
             {
                 store = new X509Store(storeName, storeLocation);
-                store.Open (OpenFlags.ReadWrite);
+                store.Open(OpenFlags.ReadWrite);
 
                 store.Add(cert);
             }
@@ -118,7 +118,7 @@ namespace app.CertificateStore
             try
             {
                 store = new X509Store(storeName, storeLocation);
-                store.Open (OpenFlags.ReadWrite);
+                store.Open(OpenFlags.ReadWrite);
 
                 store.Remove(cert);
             }
