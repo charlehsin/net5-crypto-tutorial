@@ -15,7 +15,7 @@ namespace app.Certificates
         /// </summary>
         /// <param name="cert"></param>
         /// <returns>info</returns>
-        public string GetCertInfo(X509Certificate2 cert)
+        public static string GetCertInfo(X509Certificate2 cert)
         {
             var info = $"subject: {cert.Subject}{Environment.NewLine}" +
                 $"issuer: {cert.Issuer}{Environment.NewLine}" +
@@ -78,38 +78,36 @@ namespace app.Certificates
         /// <param name="notBefore"></param>
         /// <param name="notAfter"></param>
         /// <returns>X509Certificate2</returns>
-        public X509Certificate2 CreateSelfSignedCert(int keySize, string commonName,
+        public static X509Certificate2 CreateSelfSignedCert(int keySize, string commonName,
             System.DateTimeOffset notBefore, System.DateTimeOffset notAfter)
         {
-            using (var rsa = RSA.Create(keySize))
-            {
-                var request = new CertificateRequest(
-                    $"CN={commonName}",
-                    rsa,
-                    HashAlgorithmName.SHA512,
-                    RSASignaturePadding.Pkcs1);
+            using var rsa = RSA.Create(keySize);
+            var request = new CertificateRequest(
+                $"CN={commonName}",
+                rsa,
+                HashAlgorithmName.SHA512,
+                RSASignaturePadding.Pkcs1);
 
-                request.CertificateExtensions.Add(new X509BasicConstraintsExtension(
-                    true/*certificateAuthority*/,
-                    false/*hasPathLengthConstraint*/,
-                    0/*pathLengthConstraint*/,
-                    true/*critical*/));
+            request.CertificateExtensions.Add(new X509BasicConstraintsExtension(
+                true/*certificateAuthority*/,
+                false/*hasPathLengthConstraint*/,
+                0/*pathLengthConstraint*/,
+                true/*critical*/));
 
-                request.CertificateExtensions.Add(new X509KeyUsageExtension(
-                    X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign/*keyUsages*/,
-                    false/*critical*/));
+            request.CertificateExtensions.Add(new X509KeyUsageExtension(
+                X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign/*keyUsages*/,
+                false/*critical*/));
 
-                request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(
-                    request.PublicKey/*subjectKeyIdentifier*/,
-                    false/*critical*/));
+            request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(
+                request.PublicKey/*subjectKeyIdentifier*/,
+                false/*critical*/));
 
-                var subjectAlternativeNameBuilder = new SubjectAlternativeNameBuilder();
-                subjectAlternativeNameBuilder.AddDnsName("test.com");
-                subjectAlternativeNameBuilder.AddIpAddress(IPAddress.Loopback);
-                request.CertificateExtensions.Add(subjectAlternativeNameBuilder.Build());
+            var subjectAlternativeNameBuilder = new SubjectAlternativeNameBuilder();
+            subjectAlternativeNameBuilder.AddDnsName("test.com");
+            subjectAlternativeNameBuilder.AddIpAddress(IPAddress.Loopback);
+            request.CertificateExtensions.Add(subjectAlternativeNameBuilder.Build());
 
-                return request.CreateSelfSigned(notBefore, notAfter);
-            }
+            return request.CreateSelfSigned(notBefore, notAfter);
         }
 
         /// <summary>
@@ -124,54 +122,52 @@ namespace app.Certificates
         /// <param name="notAfter"></param>
         /// <param name="includePrivateKey"></param>
         /// <returns>X509Certificate2</returns>
-        public X509Certificate2 IssueSignedCert(X509Certificate2 parentCert, int keySize, string commonName,
+        public static X509Certificate2 IssueSignedCert(X509Certificate2 parentCert, int keySize, string commonName,
             X509KeyUsageFlags flags, OidCollection oidCollection,
             System.DateTimeOffset notBefore, System.DateTimeOffset notAfter,
             bool includePrivateKey)
         {
-            using (var rsa = RSA.Create(keySize))
+            using var rsa = RSA.Create(keySize);
+            var request = new CertificateRequest(
+                $"CN={commonName}",
+                rsa,
+                HashAlgorithmName.SHA512,
+                RSASignaturePadding.Pkcs1);
+
+            request.CertificateExtensions.Add(new X509BasicConstraintsExtension(
+                false/*certificateAuthority*/,
+                false/*hasPathLengthConstraint*/,
+                0/*pathLengthConstraint*/,
+                false/*critical*/));
+
+            request.CertificateExtensions.Add(new X509KeyUsageExtension(
+                flags/*keyUsages*/,
+                false/*critical*/));
+
+            request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(
+                oidCollection/*oidCollection*/,
+                true/*critical*/));
+
+            request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(
+                request.PublicKey/*subjectKeyIdentifier*/,
+                false/*critical*/));
+
+            var subjectAlternativeNameBuilder = new SubjectAlternativeNameBuilder();
+            subjectAlternativeNameBuilder.AddDnsName("test.com");
+            subjectAlternativeNameBuilder.AddIpAddress(IPAddress.Loopback);
+            request.CertificateExtensions.Add(subjectAlternativeNameBuilder.Build());
+
+            var serialNumber = new byte[SerialNumberSizeInBytes];
+            RandomNumberGenerator.Fill(serialNumber);
+            var cert = request.Create(parentCert, notBefore, notAfter, serialNumber);
+            if (!includePrivateKey)
             {
-                var request = new CertificateRequest(
-                    $"CN={commonName}",
-                    rsa,
-                    HashAlgorithmName.SHA512,
-                    RSASignaturePadding.Pkcs1);
-
-                request.CertificateExtensions.Add(new X509BasicConstraintsExtension(
-                    false/*certificateAuthority*/,
-                    false/*hasPathLengthConstraint*/,
-                    0/*pathLengthConstraint*/,
-                    false/*critical*/));
-
-                request.CertificateExtensions.Add(new X509KeyUsageExtension(
-                    flags/*keyUsages*/,
-                    false/*critical*/));
-
-                request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(
-                    oidCollection/*oidCollection*/,
-                    true/*critical*/));
-
-                request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(
-                    request.PublicKey/*subjectKeyIdentifier*/,
-                    false/*critical*/));
-
-                var subjectAlternativeNameBuilder = new SubjectAlternativeNameBuilder();
-                subjectAlternativeNameBuilder.AddDnsName("test.com");
-                subjectAlternativeNameBuilder.AddIpAddress(IPAddress.Loopback);
-                request.CertificateExtensions.Add(subjectAlternativeNameBuilder.Build());
-
-                var serialNumber = new byte[SerialNumberSizeInBytes];
-                RandomNumberGenerator.Fill(serialNumber);
-                var cert = request.Create(parentCert, notBefore, notAfter, serialNumber);
-                if (!includePrivateKey)
-                {
-                    return cert;
-                }
-
-                var certWithPrivateKey = cert.CopyWithPrivateKey(rsa);
-                cert.Dispose();
-                return certWithPrivateKey;
+                return cert;
             }
+
+            var certWithPrivateKey = cert.CopyWithPrivateKey(rsa);
+            cert.Dispose();
+            return certWithPrivateKey;
         }
 
         /// <summary>
@@ -180,7 +176,7 @@ namespace app.Certificates
         /// <param name="cert"></param>
         /// <param name="flags"></param>
         /// <returns>X509Certificate2</returns>
-        public X509Certificate2 GetCertWithStorageFlags(X509Certificate2 cert, X509KeyStorageFlags flags)
+        public static X509Certificate2 GetCertWithStorageFlags(X509Certificate2 cert, X509KeyStorageFlags flags)
         {
             return new X509Certificate2(
                 cert.Export(X509ContentType.Pkcs12),
@@ -197,41 +193,39 @@ namespace app.Certificates
         /// <param name="revocationMode"></param>
         /// <param name="revocationFlag"></param>
         /// <returns>(valid or not, the chain status array)</returns>
-        public (bool, X509ChainStatus[]) ValidateCertificateChain(X509Certificate2 cert, X509Certificate2 parentCert,
+        public static (bool, X509ChainStatus[]) ValidateCertificateChain(X509Certificate2 cert, X509Certificate2 parentCert,
             X509RevocationMode revocationMode, X509RevocationFlag revocationFlag)
         {
-            using (var chain = new X509Chain())
+            using var chain = new X509Chain();
+            chain.ChainPolicy.RevocationMode = revocationMode;
+            chain.ChainPolicy.RevocationFlag = revocationFlag;
+
+            if (parentCert != null)
             {
-                chain.ChainPolicy.RevocationMode = revocationMode;
-                chain.ChainPolicy.RevocationFlag = revocationFlag;
-
-                if (parentCert != null)
-                {
-                    // If the parent cert is not trusted, we need to trust it manually.
-                    chain.ChainPolicy.ExtraStore.Add(parentCert);
-                    chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-                    chain.ChainPolicy.CustomTrustStore.Clear();
-                    chain.ChainPolicy.CustomTrustStore.Add(parentCert);
-                }
-
-                if (!chain.Build(cert))
-                {
-                    return (false, chain.ChainStatus);
-                }
-
-                // Do further checking to make sure that there is matching thumbprint in the cert chain with our parent cert.
-                var isValid = false;
-                foreach (var element in chain.ChainElements)
-                {
-                    if (element.Certificate.Thumbprint.Equals(parentCert.Thumbprint, StringComparison.OrdinalIgnoreCase))
-                    {
-                        isValid = true;
-                        break;
-                    }
-                }
-
-                return (isValid, chain.ChainStatus);
+                // If the parent cert is not trusted, we need to trust it manually.
+                chain.ChainPolicy.ExtraStore.Add(parentCert);
+                chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+                chain.ChainPolicy.CustomTrustStore.Clear();
+                chain.ChainPolicy.CustomTrustStore.Add(parentCert);
             }
+
+            if (!chain.Build(cert))
+            {
+                return (false, chain.ChainStatus);
+            }
+
+            // Do further checking to make sure that there is matching thumbprint in the cert chain with our parent cert.
+            var isValid = false;
+            foreach (var element in chain.ChainElements)
+            {
+                if (element.Certificate.Thumbprint.Equals(parentCert.Thumbprint, StringComparison.OrdinalIgnoreCase))
+                {
+                    isValid = true;
+                    break;
+                }
+            }
+
+            return (isValid, chain.ChainStatus);
         }
     }
 }

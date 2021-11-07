@@ -25,7 +25,8 @@ This shows some tutorial codes for the following:
 
 - https://docs.microsoft.com/en-us/dotnet/core/tutorials/with-visual-studio-code?pivots=dotnet-5-0
 - https://docs.microsoft.com/en-us/dotnet/standard/security/cryptography-model
-- https://docs.microsoft.com/en-us/dotnet/standard/security/cross-platform-cryptography 
+- https://docs.microsoft.com/en-us/dotnet/standard/security/cross-platform-cryptography
+- https://www.strathweb.com/2019/04/roslyn-analyzers-in-code-fixes-in-omnisharp-and-vs-code/
 
 ### Encryption and decryption
 

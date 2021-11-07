@@ -12,7 +12,7 @@ namespace app.CertificateStore
         /// <param name="storeLocation"></param>
         /// <param name="storeName"></param>
         /// <returns>X509Certificate2</returns>
-        public X509Certificate2 FindNotExpiredCertFromCertStoreByName(string certName,
+        public static X509Certificate2 FindNotExpiredCertFromCertStoreByName(string certName,
             StoreLocation storeLocation, StoreName storeName)
         {
             X509Store store = null;
@@ -50,7 +50,7 @@ namespace app.CertificateStore
         /// <param name="storeLocation"></param>
         /// <param name="storeName"></param>
         /// <returns>X509Certificate2</returns>
-        public X509Certificate2 FindNotExpiredCertFromCertStoreByThumbprint(string thumbprint,
+        public static X509Certificate2 FindNotExpiredCertFromCertStoreByThumbprint(string thumbprint,
             StoreLocation storeLocation, StoreName storeName)
         {
             X509Store store = null;
@@ -87,7 +87,7 @@ namespace app.CertificateStore
         /// <param name="cert"></param>
         /// <param name="storeLocation"></param>
         /// <param name="storeName"></param>
-        public void AddCertificateIntoCertStore(X509Certificate2 cert,
+        public static void AddCertificateIntoCertStore(X509Certificate2 cert,
             StoreLocation storeLocation, StoreName storeName)
         {
             X509Store store = null;
@@ -111,7 +111,7 @@ namespace app.CertificateStore
         /// <param name="cert"></param>
         /// <param name="storeLocation"></param>
         /// <param name="storeName"></param>
-        public void RemoveCertificateFromCertStore(X509Certificate2 cert,
+        public static void RemoveCertificateFromCertStore(X509Certificate2 cert,
             StoreLocation storeLocation, StoreName storeName)
         {
             X509Store store = null;

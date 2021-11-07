@@ -14,7 +14,7 @@ namespace app.EncryptionDecryption
         /// </summary>
         /// <param name="keyLengthInBytes"></param>
         /// <returns>key</returns>
-        public byte[] GenerateKey(int keyLengthInBytes)
+        public static byte[] GenerateKey(int keyLengthInBytes)
         {
             var key = new byte[keyLengthInBytes];
             RandomNumberGenerator.Fill(key);
@@ -27,21 +27,19 @@ namespace app.EncryptionDecryption
         /// <param name="key"></param>
         /// <param name="target"></param>
         /// <param name="nonceLengthInBytes"></param>
-        /// <param name="tageLengthInBytes"></param>
+        /// <param name="tagLengthInBytes"></param>
         /// <returns>byte array with nonce, tag, cipher in order</returns>
-        public byte[] Encrypt(byte[] key, byte[] target,
-            int nonceLengthInBytes, int tageLengthInBytes)
+        public static byte[] Encrypt(byte[] key, byte[] target,
+            int nonceLengthInBytes, int tagLengthInBytes)
         {
-            using (var encryptor = new AesGcm(key))
-            {
-                var cipher = new byte[target.Length];
-                var tag = new byte[TagLengthInBytes];
-                var nonce = GenerateNonce(nonceLengthInBytes);
+            using var encryptor = new AesGcm(key);
+            var cipher = new byte[target.Length];
+            var tag = new byte[tagLengthInBytes];
+            var nonce = GenerateNonce(nonceLengthInBytes);
 
-                encryptor.Encrypt(nonce, target, cipher, tag);
+            encryptor.Encrypt(nonce, target, cipher, tag);
 
-                return nonce.Concat(tag).Concat(cipher).ToArray();
-            }
+            return nonce.Concat(tag).Concat(cipher).ToArray();
         }
 
         /// <summary>
@@ -52,17 +50,15 @@ namespace app.EncryptionDecryption
         /// <param name="nonce"></param>
         /// <param name="tag"></param>
         /// <returns>decrypted result</returns>
-        public byte[] Decrypt(byte[] cipher, byte[] key,
+        public static byte[] Decrypt(byte[] cipher, byte[] key,
             byte[] nonce, byte[] tag)
         {
-            using (var decryptor = new AesGcm(key))
-            {
-                var plaintextBytes = new byte[cipher.Length];
+            using var decryptor = new AesGcm(key);
+            var plaintextBytes = new byte[cipher.Length];
 
-                decryptor.Decrypt(nonce, cipher, tag, plaintextBytes);
+            decryptor.Decrypt(nonce, cipher, tag, plaintextBytes);
 
-                return plaintextBytes;
-            }
+            return plaintextBytes;
         }
 
         /// <summary>
@@ -70,7 +66,7 @@ namespace app.EncryptionDecryption
         /// </summary>
         /// <param name="nonceLengthInBytes"></param>
         /// <returns>nonce</returns>
-        private byte[] GenerateNonce(int nonceLengthInBytes)
+        private static byte[] GenerateNonce(int nonceLengthInBytes)
         {
             var nonce = new byte[nonceLengthInBytes];
             RandomNumberGenerator.Fill(nonce);

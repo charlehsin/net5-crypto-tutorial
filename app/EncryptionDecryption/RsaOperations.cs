@@ -10,7 +10,7 @@ namespace app.EncryptionDecryption
         /// <param name="rsa">public key</param>
         /// <param name="target"></param>
         /// <returns>cipher byte array</returns>/
-        public byte[] Encrypt(RSA rsa, byte[] target)
+        public static byte[] Encrypt(RSA rsa, byte[] target)
         {
             return rsa.Encrypt(target, RSAEncryptionPadding.Pkcs1);
         }
@@ -21,7 +21,7 @@ namespace app.EncryptionDecryption
         /// <param name="rsa">private key</param>
         /// <param name="cipher"></param>
         /// <returns>decrypted result.</returns>/
-        public byte[] Decrypt(RSA rsa, byte[] cipher)
+        public static byte[] Decrypt(RSA rsa, byte[] cipher)
         {
             return rsa.Decrypt(cipher, RSAEncryptionPadding.Pkcs1);
         }

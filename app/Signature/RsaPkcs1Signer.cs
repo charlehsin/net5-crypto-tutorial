@@ -11,12 +11,10 @@ namespace app.Signature
         /// </summary>
         /// <param name="data"></param>
         /// <returns>hash</returns>
-        public byte[] GetSha512Hash(byte[] data)
+        public static byte[] GetSha512Hash(byte[] data)
         {
-            using (var sha512 = SHA512.Create())
-            {
-                return sha512.ComputeHash(data);
-            }
+            using var sha512 = SHA512.Create();
+            return sha512.ComputeHash(data);
         }
 
         /// <summary>
@@ -27,7 +25,7 @@ namespace app.Signature
         /// <param name="hashAlg"></param>
         /// <param name="hash"></param>
         /// <returns>signed hash</returns>
-        public byte[] Sign(RSA rsa, string hashAlg, byte[] hash)
+        public static byte[] Sign(RSA rsa, string hashAlg, byte[] hash)
         {
             var rsaFormatter = new RSAPKCS1SignatureFormatter(rsa);
             rsaFormatter.SetHashAlgorithm(hashAlg);
@@ -42,7 +40,7 @@ namespace app.Signature
         /// <param name="hash"></param>
         /// <param name="signedHash"></param>
         /// <returns>True if it is valid.</returns>
-        public bool Verify(RSA rsa, string hashAlg, byte[] hash, byte[] signedHash)
+        public static bool Verify(RSA rsa, string hashAlg, byte[] hash, byte[] signedHash)
         {
             var rsaDeformatter = new RSAPKCS1SignatureDeformatter(rsa);
             rsaDeformatter.SetHashAlgorithm(hashAlg);

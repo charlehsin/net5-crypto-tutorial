@@ -12,12 +12,14 @@ namespace app.Signature
         /// <param name="signerCert"></param>
         /// <param name="message"></param>
         /// <returns>encoded message</returns>
-        public byte[] Sign(X509Certificate2 signerCert, byte[] message)
+        public static byte[] Sign(X509Certificate2 signerCert, byte[] message)
         {
             var contentInfo = new ContentInfo(message);
             var signedCms = new SignedCms(contentInfo);
-            var cmsSigner = new CmsSigner(signerCert);
-            cmsSigner.IncludeOption = X509IncludeOption.EndCertOnly;
+            var cmsSigner = new CmsSigner(signerCert)
+            {
+                IncludeOption = X509IncludeOption.EndCertOnly
+            };
             signedCms.ComputeSignature(cmsSigner, true);
             return signedCms.Encode();
         }
@@ -29,7 +31,7 @@ namespace app.Signature
         /// <param name="originalMessage">Return the original message if the return is true.</param>
         /// <param name="signerCert">Return the signer cert if the return is true.</param>
         /// <returns>True if this is valid.</returns>
-        public bool Verify(byte[] encodedMessage, out byte[] originalMessage,
+        public static bool Verify(byte[] encodedMessage, out byte[] originalMessage,
             out X509Certificate2 signerCert)
         {
             var signedCms = new SignedCms();
