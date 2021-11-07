@@ -94,23 +94,19 @@ namespace app
         private static void TryRsa()
         {
             const string originalText = "This is a test.";
-            var decryptedText = string.Empty;
-
             Console.Write($"{Environment.NewLine}Press any key to start RSA...");
             Console.ReadKey(true);
             Console.WriteLine($"{Environment.NewLine}");
 
             var notBefore = DateTimeOffset.UtcNow.AddDays(-45);
             var notAfter = DateTimeOffset.UtcNow.AddDays(365);
-            using (var rootCert = CertificateOperations.CreateSelfSignedCert(CertificateOperations.KeySizeInBits, "A test root",
-                notBefore, notAfter))
-            {
-                var rsaOperations = new RsaOperations();
-                var cipher = RsaOperations.Encrypt(rootCert.GetRSAPublicKey(), Encoding.UTF8.GetBytes(originalText));
-                var decrypted = RsaOperations.Decrypt(rootCert.GetRSAPrivateKey(), cipher);
-                decryptedText = Encoding.UTF8.GetString(decrypted);
-            }
+            using var rootCert = CertificateOperations.CreateSelfSignedCert(CertificateOperations.KeySizeInBits, "A test root",
+                notBefore, notAfter);
 
+            var rsaOperations = new RsaOperations();
+            var cipher = RsaOperations.Encrypt(rootCert.GetRSAPublicKey(), Encoding.UTF8.GetBytes(originalText));
+            var decrypted = RsaOperations.Decrypt(rootCert.GetRSAPrivateKey(), cipher);
+            var decryptedText = Encoding.UTF8.GetString(decrypted);
             Console.WriteLine($"original text: {originalText}");
             Console.WriteLine($"decrypted text: {decryptedText}");
 
@@ -129,33 +125,33 @@ namespace app
 
             var notBefore = DateTimeOffset.UtcNow.AddDays(-45);
             var notAfter = DateTimeOffset.UtcNow.AddDays(365);
-            using (var rootCert = CertificateOperations.CreateSelfSignedCert(CertificateOperations.KeySizeInBits, "A test root",
-                notBefore, notAfter))
-            using (var cert = CertificateOperations.IssueSignedCert(rootCert, CertificateOperations.KeySizeInBits, "A test TLS cert",
+            using var rootCert = CertificateOperations.CreateSelfSignedCert(CertificateOperations.KeySizeInBits, "A test root",
+                notBefore, notAfter);
+            using var cert = CertificateOperations.IssueSignedCert(rootCert, CertificateOperations.KeySizeInBits, "A test TLS cert",
                 X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation | X509KeyUsageFlags.KeyEncipherment,
                 new OidCollection { new Oid("1.3.6.1.5.5.7.3.1")/*id-kp-serverAuth*/ },
-                notBefore, notAfter, true))
+                notBefore, notAfter, true);
+
+            Console.WriteLine("Parent cert info:");
+            Console.WriteLine($"{CertificateOperations.GetCertInfo(rootCert)}");
+
+            Console.Write($"{Environment.NewLine}Press any key to continue...");
+            Console.ReadKey(true);
+            Console.WriteLine($"{Environment.NewLine}");
+
+            Console.WriteLine("Cert info:");
+            Console.WriteLine($"{CertificateOperations.GetCertInfo(cert)}");
+
+            Console.WriteLine("Validate cert chain:");
+            (var isValid, var chainStatusArray) = CertificateOperations.ValidateCertificateChain(cert, rootCert,
+                X509RevocationMode.NoCheck, X509RevocationFlag.EndCertificateOnly);
+            Console.Write($"{isValid} ");
+            foreach (var status in chainStatusArray)
             {
-                Console.WriteLine("Parent cert info:");
-                Console.WriteLine($"{CertificateOperations.GetCertInfo(rootCert)}");
-
-                Console.Write($"{Environment.NewLine}Press any key to continue...");
-                Console.ReadKey(true);
-                Console.WriteLine($"{Environment.NewLine}");
-
-                Console.WriteLine("Cert info:");
-                Console.WriteLine($"{CertificateOperations.GetCertInfo(cert)}");
-
-                Console.WriteLine("Validate cert chain:");
-                (var isValid, var chainStatusArray) = CertificateOperations.ValidateCertificateChain(cert, rootCert,
-                    X509RevocationMode.NoCheck, X509RevocationFlag.EndCertificateOnly);
-                Console.Write($"{isValid} ");
-                foreach (var status in chainStatusArray)
-                {
-                    Console.Write($"{status.StatusInformation} ");
-                }
-                Console.WriteLine(string.Empty);
+                Console.Write($"{status.StatusInformation} ");
             }
+            Console.WriteLine(string.Empty);
+
             Console.Write($"{Environment.NewLine}Press any key to finish creating certificates...");
             Console.ReadKey(true);
         }
@@ -176,47 +172,47 @@ namespace app
 
             var notBefore = DateTimeOffset.UtcNow.AddDays(-45);
             var notAfter = DateTimeOffset.UtcNow.AddDays(365);
-            using (var rootCert = CertificateOperations.CreateSelfSignedCert(CertificateOperations.KeySizeInBits, "A test root",
-                notBefore, notAfter))
-            using (var cert = CertificateOperations.IssueSignedCert(rootCert, CertificateOperations.KeySizeInBits, "A test TLS cert",
+            using var rootCert = CertificateOperations.CreateSelfSignedCert(CertificateOperations.KeySizeInBits, "A test root",
+                notBefore, notAfter);
+            using var cert = CertificateOperations.IssueSignedCert(rootCert, CertificateOperations.KeySizeInBits, "A test TLS cert",
                 X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation | X509KeyUsageFlags.KeyEncipherment,
                 new OidCollection { new Oid("1.3.6.1.5.5.7.3.1")/*id-kp-serverAuth*/ },
-                notBefore, notAfter, true))
-            using (var newCert = CertificateOperations.GetCertWithStorageFlags(cert,
-                    X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable))
-            {
-                var certStoreOperations = new CertificateStoreOperations();
-                var targetCert = CertificateStoreOperations.FindNotExpiredCertFromCertStoreByName("CN=A test TLS cert",
-                    StoreLocation.LocalMachine, StoreName.My);
-                Console.WriteLine($"{(targetCert == null ? cannotFindCert : foundCert)}");
-                targetCert?.Dispose();
-                targetCert = CertificateStoreOperations.FindNotExpiredCertFromCertStoreByThumbprint(newCert.Thumbprint,
-                    StoreLocation.LocalMachine, StoreName.My);
-                Console.WriteLine($"{(targetCert == null ? cannotFindCertByThumbprint : foundCertByThumbprint)}");
-                targetCert?.Dispose();
+                notBefore, notAfter, true);
+            using var newCert = CertificateOperations.GetCertWithStorageFlags(cert,
+                    X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable);
 
-                Console.WriteLine($"Add the cert into cert store.");
-                CertificateStoreOperations.AddCertificateIntoCertStore(newCert, StoreLocation.LocalMachine, StoreName.My);
-                targetCert = CertificateStoreOperations.FindNotExpiredCertFromCertStoreByName("CN=A test TLS cert",
-                    StoreLocation.LocalMachine, StoreName.My);
-                Console.WriteLine($"{(targetCert == null ? cannotFindCert : foundCert)}");
-                targetCert?.Dispose();
-                targetCert = CertificateStoreOperations.FindNotExpiredCertFromCertStoreByThumbprint(newCert.Thumbprint,
-                    StoreLocation.LocalMachine, StoreName.My);
-                Console.WriteLine($"{(targetCert == null ? cannotFindCertByThumbprint : foundCertByThumbprint)}");
-                targetCert?.Dispose();
+            var certStoreOperations = new CertificateStoreOperations();
+            var targetCert = CertificateStoreOperations.FindNotExpiredCertFromCertStoreByName("CN=A test TLS cert",
+                StoreLocation.LocalMachine, StoreName.My);
+            Console.WriteLine($"{(targetCert == null ? cannotFindCert : foundCert)}");
+            targetCert?.Dispose();
+            targetCert = CertificateStoreOperations.FindNotExpiredCertFromCertStoreByThumbprint(newCert.Thumbprint,
+                StoreLocation.LocalMachine, StoreName.My);
+            Console.WriteLine($"{(targetCert == null ? cannotFindCertByThumbprint : foundCertByThumbprint)}");
+            targetCert?.Dispose();
 
-                Console.WriteLine($"Remove the cert from cert store.");
-                CertificateStoreOperations.RemoveCertificateFromCertStore(newCert, StoreLocation.LocalMachine, StoreName.My);
-                targetCert = CertificateStoreOperations.FindNotExpiredCertFromCertStoreByName("CN=A test TLS cert",
-                    StoreLocation.LocalMachine, StoreName.My);
-                Console.WriteLine($"{(targetCert == null ? cannotFindCert : foundCert)}");
-                targetCert?.Dispose();
-                targetCert = CertificateStoreOperations.FindNotExpiredCertFromCertStoreByThumbprint(newCert.Thumbprint,
-                    StoreLocation.LocalMachine, StoreName.My);
-                Console.WriteLine($"{(targetCert == null ? cannotFindCertByThumbprint : foundCertByThumbprint)}");
-                targetCert?.Dispose();
-            }
+            Console.WriteLine($"Add the cert into cert store.");
+            CertificateStoreOperations.AddCertificateIntoCertStore(newCert, StoreLocation.LocalMachine, StoreName.My);
+            targetCert = CertificateStoreOperations.FindNotExpiredCertFromCertStoreByName("CN=A test TLS cert",
+                StoreLocation.LocalMachine, StoreName.My);
+            Console.WriteLine($"{(targetCert == null ? cannotFindCert : foundCert)}");
+            targetCert?.Dispose();
+            targetCert = CertificateStoreOperations.FindNotExpiredCertFromCertStoreByThumbprint(newCert.Thumbprint,
+                StoreLocation.LocalMachine, StoreName.My);
+            Console.WriteLine($"{(targetCert == null ? cannotFindCertByThumbprint : foundCertByThumbprint)}");
+            targetCert?.Dispose();
+
+            Console.WriteLine($"Remove the cert from cert store.");
+            CertificateStoreOperations.RemoveCertificateFromCertStore(newCert, StoreLocation.LocalMachine, StoreName.My);
+            targetCert = CertificateStoreOperations.FindNotExpiredCertFromCertStoreByName("CN=A test TLS cert",
+                StoreLocation.LocalMachine, StoreName.My);
+            Console.WriteLine($"{(targetCert == null ? cannotFindCert : foundCert)}");
+            targetCert?.Dispose();
+            targetCert = CertificateStoreOperations.FindNotExpiredCertFromCertStoreByThumbprint(newCert.Thumbprint,
+                StoreLocation.LocalMachine, StoreName.My);
+            Console.WriteLine($"{(targetCert == null ? cannotFindCertByThumbprint : foundCertByThumbprint)}");
+            targetCert?.Dispose();
+
             Console.Write($"{Environment.NewLine}Press any key to finish cert store operations...");
             Console.ReadKey(true);
         }
@@ -232,29 +228,28 @@ namespace app
 
             var notBefore = DateTimeOffset.UtcNow.AddDays(-45);
             var notAfter = DateTimeOffset.UtcNow.AddDays(365);
-            using (var rootCert = CertificateOperations.CreateSelfSignedCert(CertificateOperations.KeySizeInBits, "A test root",
-                notBefore, notAfter))
-            {
-                var originalData = new byte[50];
-                RandomNumberGenerator.Fill(originalData);
+            using var rootCert = CertificateOperations.CreateSelfSignedCert(CertificateOperations.KeySizeInBits, "A test root",
+                notBefore, notAfter);
 
-                var rsaPkcs1Signer = new RsaPkcs1Signer();
+            var originalData = new byte[50];
+            RandomNumberGenerator.Fill(originalData);
 
-                var originalHash = RsaPkcs1Signer.GetSha512Hash(originalData);
+            var rsaPkcs1Signer = new RsaPkcs1Signer();
 
-                var signedHash = RsaPkcs1Signer.Sign(rootCert.GetRSAPrivateKey(),
-                    RsaPkcs1Signer.SHA512HashAlgorithm, originalHash);
+            var originalHash = RsaPkcs1Signer.GetSha512Hash(originalData);
 
-                var isValid = RsaPkcs1Signer.Verify(rootCert.GetRSAPublicKey(), RsaPkcs1Signer.SHA512HashAlgorithm,
-                    originalHash, signedHash);
-                Console.WriteLine($"Signed hash is not changed. Is the signature valid? {isValid}");
+            var signedHash = RsaPkcs1Signer.Sign(rootCert.GetRSAPrivateKey(),
+                RsaPkcs1Signer.SHA512HashAlgorithm, originalHash);
 
-                signedHash[2] = 0x2;
-                signedHash[3] = 0x2;
-                isValid = RsaPkcs1Signer.Verify(rootCert.GetRSAPublicKey(), RsaPkcs1Signer.SHA512HashAlgorithm,
-                    originalHash, signedHash);
-                Console.WriteLine($"Signed hash is changed. Is the signature valid? {isValid}");
-            }
+            var isValid = RsaPkcs1Signer.Verify(rootCert.GetRSAPublicKey(), RsaPkcs1Signer.SHA512HashAlgorithm,
+                originalHash, signedHash);
+            Console.WriteLine($"Signed hash is not changed. Is the signature valid? {isValid}");
+
+            signedHash[2] = 0x2;
+            signedHash[3] = 0x2;
+            isValid = RsaPkcs1Signer.Verify(rootCert.GetRSAPublicKey(), RsaPkcs1Signer.SHA512HashAlgorithm,
+                originalHash, signedHash);
+            Console.WriteLine($"Signed hash is changed. Is the signature valid? {isValid}");
 
             Console.Write($"{Environment.NewLine}Press any key to finish RSA PKCS1 signature...");
             Console.ReadKey(true);
@@ -271,23 +266,22 @@ namespace app
 
             var notBefore = DateTimeOffset.UtcNow.AddDays(-45);
             var notAfter = DateTimeOffset.UtcNow.AddDays(365);
-            using (var rootCert = CertificateOperations.CreateSelfSignedCert(CertificateOperations.KeySizeInBits, "A test root",
-                notBefore, notAfter))
-            {
-                var originalMessage = new byte[50];
-                RandomNumberGenerator.Fill(originalMessage);
+            using var rootCert = CertificateOperations.CreateSelfSignedCert(CertificateOperations.KeySizeInBits, "A test root",
+                notBefore, notAfter);
 
-                var cmsPkcs7Signer = new CmsPkcs7Signer();
-                var encodedMessage = CmsPkcs7Signer.Sign(rootCert, originalMessage);
+            var originalMessage = new byte[50];
+            RandomNumberGenerator.Fill(originalMessage);
 
-                var isValid = CmsPkcs7Signer.Verify(encodedMessage, out _, out _);
-                Console.WriteLine($"Encoded message is not changed. Is the signature valid? {isValid}");
+            var cmsPkcs7Signer = new CmsPkcs7Signer();
+            var encodedMessage = CmsPkcs7Signer.Sign(rootCert, originalMessage);
 
-                encodedMessage[2] = 0x2;
-                encodedMessage[3] = 0x2;
-                isValid = CmsPkcs7Signer.Verify(encodedMessage, out _, out _);
-                Console.WriteLine($"Encoded message is changed. Is the signature valid? {isValid}");
-            }
+            var isValid = CmsPkcs7Signer.Verify(encodedMessage, out _, out _);
+            Console.WriteLine($"Encoded message is not changed. Is the signature valid? {isValid}");
+
+            encodedMessage[2] = 0x2;
+            encodedMessage[3] = 0x2;
+            isValid = CmsPkcs7Signer.Verify(encodedMessage, out _, out _);
+            Console.WriteLine($"Encoded message is changed. Is the signature valid? {isValid}");
 
             Console.Write($"{Environment.NewLine}Press any key to finish CMS PKCS7 signature...");
             Console.ReadKey(true);
