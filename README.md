@@ -2,6 +2,8 @@
 
 ## Overview
 
+This is a simple console app and you can choose the action you want to run.
+
 This shows some tutorial codes for the following:
 - Random number generation
 - Symmetric AES GCM encryption and decryption
@@ -10,12 +12,17 @@ This shows some tutorial codes for the following:
 - Certificate store operations
 - Signature
 
+## GitHub Actions
+
+- DOTNET build and test
+- CodeQL
+
 ## NET CLI commands
 
-- dotnet new console --framework net5.0
-- dotnet run
+- (in app folder) dotnet new console --framework net5.0
+- dotnet run --project app\app.csproj
 
-### Extra packages
+## Extra packages
 
 - (For CmsSigner) dotnet add package System.Security.Cryptography.Pkcs --version 5.0.1
 
