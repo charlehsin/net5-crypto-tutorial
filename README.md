@@ -35,6 +35,33 @@ This shows sample codes for the following:
    - https://docs.microsoft.com/en-us/dotnet/standard/security/cryptographic-signatures
    - https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.pkcs.signedcms?view=windowsdesktop-5.0
    - https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.pkcs.cmssigner?view=windowsdesktop-5.0
+- TCP operations
+   - https://www.codeproject.com/Articles/5270779/High-Performance-TCP-Client-Server-using-TCPListen
+   - https://docs.microsoft.com/en-us/dotnet/api/system.net.sockets.tcplistener?view=net-5.0
+   - https://docs.microsoft.com/en-us/dotnet/api/system.net.sockets.tcpclient?view=net-5.0
+   - https://docs.microsoft.com/en-us/dotnet/api/system.net.security.sslstream?view=net-5.0
+
+## Folder structure
+
+- Certificates folder: This includes codes to
+   - Create self-signed certificate.
+   - Issue signed certificate.
+   - Get certificate information.
+   - Validate the certificate chain.
+   - Get certificate object with the target storage flag.
+- CertificateStore folder: This includes codes to
+   - Find certificate from cert store by name or by thumbprint.
+   - Add certificate into cert store.
+   - Remove certificate from cert store.
+- EncryptionDecryption folder: This includes codes to
+   - Do symmetric AES GCM encryption and decryption.
+   - Do asymmetric RSA encryption and descryption.
+- Signature folder: This includes codes to
+   - Sign the hash using RSA PKCS#1, and validate it.
+   - Sign the message using CMS PKCS#7, and validate it.
+- TcpOperations folder: This includes codes to
+   - Create TCP listener with the choice to use TLS
+   - Create TCP client with the choice to use TLS
 
 ## GitHub Actions included
 
