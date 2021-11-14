@@ -8,10 +8,10 @@ namespace app.CertificateStore
         /// <summary>
         /// Find the target, not-expired, certificate by name from cert store. This is case-insensitive.
         /// </summary>
-        /// <param name="certName"></param>
-        /// <param name="storeLocation"></param>
-        /// <param name="storeName"></param>
-        /// <returns>X509Certificate2</returns>
+        /// <param name="certName">The target certificate name</param>
+        /// <param name="storeLocation">The target certificate store location.</param>
+        /// <param name="storeName">The target certificate store name.</param>
+        /// <returns>The X509Certificate2 certificate.</returns>
         public static X509Certificate2 FindNotExpiredCertFromCertStoreByName(string certName,
             StoreLocation storeLocation, StoreName storeName)
         {
@@ -46,10 +46,10 @@ namespace app.CertificateStore
         /// <summary>
         /// Find the target, not-expired, certificate by thumbprint from cert store. This is case-insensitive.
         /// </summary>
-        /// <param name="thumbprint"></param>
-        /// <param name="storeLocation"></param>
-        /// <param name="storeName"></param>
-        /// <returns>X509Certificate2</returns>
+        /// <param name="thumbprint">The target certificate thumbprint.</param>
+        /// <param name="storeLocation">The target certificate store location.</param>
+        /// <param name="storeName">The target certificate store name.</param>
+        /// <returns>The X509Certificate2 certificate.</returns>
         public static X509Certificate2 FindNotExpiredCertFromCertStoreByThumbprint(string thumbprint,
             StoreLocation storeLocation, StoreName storeName)
         {
@@ -84,9 +84,9 @@ namespace app.CertificateStore
         /// <summary>
         /// Add target cert into cert store.
         /// </summary>
-        /// <param name="cert"></param>
-        /// <param name="storeLocation"></param>
-        /// <param name="storeName"></param>
+        /// <param name="cert">The target certificate.</param>
+        /// <param name="storeLocation"><The target certificate store location./param>
+        /// <param name="storeName">The target certificate store name.</param>
         public static void AddCertificateIntoCertStore(X509Certificate2 cert,
             StoreLocation storeLocation, StoreName storeName)
         {
@@ -108,9 +108,9 @@ namespace app.CertificateStore
         /// <summary>
         /// Remove target cert from cert store.
         /// </summary>
-        /// <param name="cert"></param>
-        /// <param name="storeLocation"></param>
-        /// <param name="storeName"></param>
+        /// <param name="cert">The target certificate.</param>
+        /// <param name="storeLocation">The target certificate store location.</param>
+        /// <param name="storeName">The target certificate store name.</param>
         public static void RemoveCertificateFromCertStore(X509Certificate2 cert,
             StoreLocation storeLocation, StoreName storeName)
         {

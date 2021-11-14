@@ -39,8 +39,9 @@ namespace app
             Console.Write($"{Environment.NewLine}Enter 4 to try cert store operations.");
             Console.Write($"{Environment.NewLine}Enter 5 to try RSA PKCS1 signature.");
             Console.Write($"{Environment.NewLine}Enter 6 to try CMS PKCS7 signature.");
-            Console.Write($"{Environment.NewLine}Enter 7 to try starting a TCP server.");
-            Console.Write($"{Environment.NewLine}Enter 8 to try starting a TCP client.");
+            Console.Write($"{Environment.NewLine}Enter 7 to try TCP operations without TLS.");
+            Console.Write($"{Environment.NewLine}Enter 8 to try TCP operations with TLS and server-side authentication.");
+            Console.Write($"{Environment.NewLine}Enter 9 to try TCP operations with TLS and mutual authentication.");
             Console.Write($"{Environment.NewLine}Enter an integer: ");
 
             var userInput = Console.ReadLine();
@@ -67,10 +68,13 @@ namespace app
                         TryCmsPkcs7Signature();
                         break;
                     case 7:
-                        TryTcpServer();
+                        TryTcpOperationsWithoutTls();
                         break;
                     case 8:
-                        TryTcpClient();
+                        TryTcpOperationsWithTls(false);
+                        break;
+                    case 9:
+                        TryTcpOperationsWithTls(true);
                         break;
                 }
             }
@@ -153,7 +157,11 @@ namespace app
                 notBefore, notAfter);
             using var cert = CertificateOperations.IssueSignedCert(rootCert, CertificateOperations.KeySizeInBits, "A test TLS cert",
                 X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation | X509KeyUsageFlags.KeyEncipherment,
-                new OidCollection { new Oid("1.3.6.1.5.5.7.3.1")/*id-kp-serverAuth*/ },
+                new OidCollection
+                {
+                    new Oid("1.3.6.1.5.5.7.3.1")/*id-kp-serverAuth*/,
+                    new Oid("1.3.6.1.5.5.7.3.2")/*id-kp-clientAuth*/
+                },
                 notBefore, notAfter, true);
 
             Console.WriteLine("Parent cert info:");
@@ -208,7 +216,7 @@ namespace app
             Console.WriteLine($"{(targetCert == null ? cannotFindCertByThumbprint : foundCertByThumbprint)}");
             targetCert?.Dispose();
 
-            Console.WriteLine($"Add the cert into cert store.");
+            Console.WriteLine("Add the cert into cert store.");
             CertificateStoreOperations.AddCertificateIntoCertStore(newCert, StoreLocation.LocalMachine, StoreName.My);
             targetCert = CertificateStoreOperations.FindNotExpiredCertFromCertStoreByName("CN=A test TLS cert",
                 StoreLocation.LocalMachine, StoreName.My);
@@ -219,7 +227,7 @@ namespace app
             Console.WriteLine($"{(targetCert == null ? cannotFindCertByThumbprint : foundCertByThumbprint)}");
             targetCert?.Dispose();
 
-            Console.WriteLine($"Remove the cert from cert store.");
+            Console.WriteLine("Remove the cert from cert store.");
             CertificateStoreOperations.RemoveCertificateFromCertStore(newCert, StoreLocation.LocalMachine, StoreName.My);
             targetCert = CertificateStoreOperations.FindNotExpiredCertFromCertStoreByName("CN=A test TLS cert",
                 StoreLocation.LocalMachine, StoreName.My);
@@ -248,18 +256,26 @@ namespace app
 
             var originalHash = RsaPkcs1Signer.GetSha512Hash(originalData);
 
-            var signedHash = RsaPkcs1Signer.Sign(rootCert.GetRSAPrivateKey(),
+            var signature = RsaPkcs1Signer.Sign(rootCert.GetRSAPrivateKey(),
                 RsaPkcs1Signer.SHA512HashAlgorithm, originalHash);
 
             var isValid = RsaPkcs1Signer.Verify(rootCert.GetRSAPublicKey(), RsaPkcs1Signer.SHA512HashAlgorithm,
-                originalHash, signedHash);
-            Console.WriteLine($"Signed hash is not changed. Is the signature valid? {isValid}");
+                originalHash, signature);
+            Console.WriteLine($"Signature is not changed. Is the signature valid? {isValid}");
 
-            signedHash[2] = 0x2;
-            signedHash[3] = 0x2;
+            var tempHash = new byte[originalHash.Length];
+            Array.Copy(originalHash, tempHash, originalHash.Length);
+            tempHash[2] = 0x2;
+            tempHash[2] = 0x2;
             isValid = RsaPkcs1Signer.Verify(rootCert.GetRSAPublicKey(), RsaPkcs1Signer.SHA512HashAlgorithm,
-                originalHash, signedHash);
-            Console.WriteLine($"Signed hash is changed. Is the signature valid? {isValid}");
+                tempHash, signature);
+            Console.WriteLine($"The hash is changed. Is the signature valid? {isValid}");
+
+            signature[2] = 0x2;
+            signature[3] = 0x2;
+            isValid = RsaPkcs1Signer.Verify(rootCert.GetRSAPublicKey(), RsaPkcs1Signer.SHA512HashAlgorithm,
+                originalHash, signature);
+            Console.WriteLine($"Signature is changed. Is the signature valid? {isValid}");
         }
 
         /// <summary>
@@ -288,111 +304,184 @@ namespace app
         }
 
         /// <summary>
-        /// Try TCP server operations.
+        /// Try TCP operations withouth TLS.
         /// </summary>
-        private static void TryTcpServer()
+        private static void TryTcpOperationsWithoutTls()
         {
-            Console.Write($"{Environment.NewLine}Press any key to stop listening...");
-            Console.WriteLine($"{Environment.NewLine}");
+            TryTcpOperations(null, null, null, null);
+        }
 
-            var myTcpServer = new MyTcpServer(_loggerForMyTcpServer, hostIp: null, listeningPort: 5001,
-                maxConcurrentClients: 5);
+        /// <summary>
+        /// Try TCP operations with TLS.
+        /// </summary>
+        /// <param name="useMutualAuthentication">True if the client certificate is required.</param>
+        private static void TryTcpOperationsWithTls(bool useMutualAuthentication)
+        {
+            // Create TLS certificates.
+            // For tutorial purpose, we use the same certs for server and for client.
+            var notBefore = DateTimeOffset.UtcNow.AddDays(-45);
+            var notAfter = DateTimeOffset.UtcNow.AddDays(365);
+            using var rootCert = CertificateOperations.CreateSelfSignedCert(CertificateOperations.KeySizeInBits, "A test root",
+                notBefore, notAfter);
+            using var cert = CertificateOperations.IssueSignedCert(rootCert, CertificateOperations.KeySizeInBits, "A test TLS cert",
+                X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation | X509KeyUsageFlags.KeyEncipherment,
+                new OidCollection
+                {
+                    new Oid("1.3.6.1.5.5.7.3.1")/*id-kp-serverAuth*/,
+                    new Oid("1.3.6.1.5.5.7.3.2")/*id-kp-clientAuth*/
+                },
+                notBefore, notAfter, true);
+            // For TLS, we cannot use ephemeral key, so we need to set the storage flag correctly.
+            using var newCert = CertificateOperations.GetCertWithStorageFlags(cert,
+                    X509KeyStorageFlags.MachineKeySet | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.Exportable);
+
+            TryTcpOperations(newCert, rootCert, useMutualAuthentication ? newCert : null, useMutualAuthentication ? rootCert : null);
+        }
+
+        /// <summary>
+        /// Try TCP operations.
+        /// This starts 1 server and 2 clients.
+        /// The server will send message to the 1st accepted client every second.
+        /// The client will send message to the server every second.
+        /// The server and the clients will stop after 5 seconds.
+        /// </summary>
+        /// <param name="serverLeafCert">The server TLS leaf certificate. Pass null if this does not use TLS.</param>
+        /// <param name="serverParentCert">The certificate used to sign the server leaf cert. Pass null if this does not use TLS.</param>
+        /// <param name="clientLeafCert">The client TLS leaf certificate. Pass null if this does not use mutual authentication.</param>
+        /// <param name="clientParentCert">The certificate used to sign the client leaf cert. Pass null if this does not use mutual authentication.</param>
+        private static void TryTcpOperations(X509Certificate2 serverLeafCert,
+                                             X509Certificate2 serverParentCert,
+                                             X509Certificate2 clientLeafCert,
+                                             X509Certificate2 clientParentCert)
+        {
+            var myTcpServer = new MyTcpServer(_loggerForMyTcpServer,
+                                              hostIp: null,
+                                              listeningPort: 5001,
+                                              maxConcurrentClients: 5,
+                                              serverCert: serverLeafCert,
+                                              clientLeafCert != null,
+                                              clientParentCert);
+            var myTcpClient1 = new MyTcpClient(_loggerForMyTcpClient,
+                                               server: "127.0.0.1",
+                                               serverPort: 5001,
+                                               useTls: serverLeafCert != null,
+                                               clientCert: clientLeafCert,
+                                               serverParentCert: serverParentCert);
+            var myTcpClient2 = new MyTcpClient(_loggerForMyTcpClient,
+                                               server: "127.0.0.1",
+                                               serverPort: 5001,
+                                               useTls: serverLeafCert != null,
+                                               clientCert: clientLeafCert,
+                                               serverParentCert: serverParentCert);
 
             // Run the main server loop in a different thread.
             var serverThread = new Thread(myTcpServer.Run);
             serverThread.Start();
 
+            // Run the main client loop in a different thread.
+            var clientTask1 = Task.Run(async () =>
+            {
+                await myTcpClient1.RunAsync().ConfigureAwait(false);
+            });
+            var clientTask2 = Task.Run(async () =>
+            {
+                await myTcpClient2.RunAsync().ConfigureAwait(false);
+            });
+
             // Dummy task to try sending data to the 1st accepted client.
             Task.Run(async () =>
             {
-                // Wait until we have at least 1 client connected.
-                int clientCount;
-                while ((clientCount = myTcpServer.GetAcceptedClients().Length) == 0)
-                {
-                    Thread.Sleep(1000);
-                }
-
-                var acceptedClients = myTcpServer.GetAcceptedClients();
-                if (acceptedClients.Length == 0)
-                {
-                    return;
-                }
-
-                // For tutorial purpose, send dummy data to the 1st accepted client.
-                try
-                {
-                    int i = 1;
-                    while (true)
-                    {
-                        byte[] msg = Encoding.ASCII.GetBytes($"{i++}");
-                        await myTcpServer.WriteToClientAsync(acceptedClients[0], msg, 0, msg.Length);
-                        Thread.Sleep(1000);
-                    }
-                }
-                catch (Exception e)
-                {
-                    _logger.Log(LogLevel.Trace, $"{e}");
-                }
-            });
-
-            // Waiting for key event to stop.
-            Console.ReadKey(true);
-
-            // Signal the main server loop to finish.
-            myTcpServer.Stop();
-            // Wait fo the thread exit.
-            serverThread.Join();
-        }
-
-        /// <summary>
-        /// Try TCP client operations.
-        /// </summary>
-        private static void TryTcpClient()
-        {
-            Console.Write($"{Environment.NewLine}Press any key to stop connection...");
-            Console.WriteLine($"{Environment.NewLine}");
-
-            var myTcpClient = new MyTcpClient(_loggerForMyTcpClient, serverIp: "127.0.0.1", serverPort: 5001);
-
-            // Run the main client loop in a different thread.
-            var clientTask = Task.Run(async () =>
-            {
-                await myTcpClient.RunAsync().ConfigureAwait(false);
+                await TcpServerWriteTo1stAccecptedClientAsync(myTcpServer).ConfigureAwait(false);
             });
 
             // Dummy task to try sending data to the server.
             Task.Run(async () =>
             {
-                // Wait until the client is connected to the server.
-                while (!myTcpClient.IsReadyToWrite)
-                {
-                    Thread.Sleep(1000);
-                }
-
-                // For tutorial purpose, send dummy data to the 1st accepted client.
-                try
-                {
-                    int i = 1;
-                    while (true)
-                    {
-                        byte[] msg = Encoding.ASCII.GetBytes($"{i++}");
-                        await myTcpClient.WriteAsync(msg, 0, msg.Length);
-                        Thread.Sleep(1000);
-                    }
-                }
-                catch (Exception e)
-                {
-                    _logger.Log(LogLevel.Trace, $"{e}");
-                }
+                await TcpClientWriteToServerAsync(myTcpClient1).ConfigureAwait(false);
+            });
+            Task.Run(async () =>
+            {
+                await TcpClientWriteToServerAsync(myTcpClient2).ConfigureAwait(false);
             });
 
-            // Waiting for key event to stop.
-            Console.ReadKey(true);
+            // Waiting for 5 seconds stop.
+            Thread.Sleep(5000);
 
+            // Signal the main client loop to finish.
+            myTcpClient1.Stop();
+            myTcpClient2.Stop();
             // Signal the main server loop to finish.
-            myTcpClient.Stop();
-            // Wait fo the thread exit.
-            clientTask.Wait();
+            myTcpServer.Stop();
+            // Wait for the threads to exit.
+            clientTask1.Wait();
+            clientTask2.Wait();
+            serverThread.Join();
+        }
+
+        /// <summary>
+        /// Write dummy data from the server to the 1st accepted client.
+        /// </summary>
+        /// <param name="myTcpServer">The MyTcpServer object.</param>
+        /// <returns></returns>
+        private static async Task TcpServerWriteTo1stAccecptedClientAsync(MyTcpServer myTcpServer)
+        {
+            // Wait until we have at least 1 client connected.
+            while ((_ = myTcpServer.GetAcceptedClients().Length) == 0)
+            {
+                Thread.Sleep(1000);
+            }
+
+            var acceptedClients = myTcpServer.GetAcceptedClients();
+            if (acceptedClients.Length == 0)
+            {
+                return;
+            }
+
+            // For tutorial purpose, send dummy data to the 1st accepted client.
+            try
+            {
+                int i = 1;
+                while (true)
+                {
+                    byte[] msg = Encoding.ASCII.GetBytes($"server message {i++}");
+                    await myTcpServer.WriteToClientAsync(acceptedClients[0], msg, 0, msg.Length);
+                    Thread.Sleep(1000);
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.Log(LogLevel.Trace, $"{e}");
+            }
+        }
+
+        /// <summary>
+        /// Write dummy data from the client to the server.
+        /// </summary>
+        /// <param name="myTcpClient">The target MyTcpClient.</param>
+        /// <returns></returns>
+        private static async Task TcpClientWriteToServerAsync(MyTcpClient myTcpClient)
+        {
+            // Wait until the client is connected to the server.
+            while (!myTcpClient.IsReadyToWrite)
+            {
+                Thread.Sleep(1000);
+            }
+
+            // For tutorial purpose, send dummy data to the 1st accepted client.
+            try
+            {
+                int i = 1;
+                while (true)
+                {
+                    byte[] msg = Encoding.ASCII.GetBytes($"client message {i++}");
+                    await myTcpClient.WriteAsync(msg, 0, msg.Length);
+                    Thread.Sleep(1000);
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.Log(LogLevel.Trace, $"{e}");
+            }
         }
     }
 }

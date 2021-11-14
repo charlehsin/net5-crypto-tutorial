@@ -2,8 +2,12 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -18,6 +22,9 @@ namespace app.TcpOperations
         private readonly int _maxConcurrentClients;
         private readonly List<Task> _clientTasks = new();
         private readonly ConcurrentDictionary<string, AcceptedClient> _acceptedClients = new();
+        private readonly X509Certificate2 _serverCert;
+        private readonly bool _clientCertificateRequired;
+        private readonly X509Certificate2 _clientParentCert;
 
         private bool _isRunning;
         private bool _isExitSignaled;
@@ -26,12 +33,20 @@ namespace app.TcpOperations
         /// <summary>
         /// Initializes a new instance of the MyTcpServer class.
         /// </summary>
-        /// <param name="logger">ILogger interface</param>
+        /// <param name="logger">ILogger interface.</param>
         /// <param name="hostIp">The server IP. Pass null or empty string to use all network interfaces.</param>
-        /// <param name="listeningPort">The server port</param>
-        /// <param name="maxConcurrentClients">The max concurrent client listeners</param>
-        public MyTcpServer(ILogger logger, string hostIp, int listeningPort,
-            int maxConcurrentClients)
+        /// <param name="listeningPort">The server port.</param>
+        /// <param name="maxConcurrentClients">The max concurrent client listeners.</param>
+        /// <param name="serverCert">The server certificate for TLS. Pass null if no TLS is needed.</param>
+        /// <param name="clientCertificateRequired">Require client certificate for mutual authentication or not.</param>
+        /// <param name="clientParentCert">The certificate used to sign the client certificate. If this is not null, this will be used to validate the client cert chain.</param>
+        public MyTcpServer(ILogger logger,
+                           string hostIp,
+                           int listeningPort,
+                           int maxConcurrentClients,
+                           X509Certificate2 serverCert,
+                           bool clientCertificateRequired,
+                           X509Certificate2 clientParentCert)
         {
             _logger = logger;
 
@@ -43,12 +58,15 @@ namespace app.TcpOperations
 
             _listeningPort = listeningPort;
             _maxConcurrentClients = maxConcurrentClients;
+            _serverCert = serverCert;
+            _clientCertificateRequired = clientCertificateRequired;
+            _clientParentCert = clientParentCert;
         }
 
         /// <summary>
-        /// Get the list of client ID from the accepted client list.
+        /// Get the client ID list from the accepted client list.
         /// </summary>
-        /// <returns>The client Id list</returns>
+        /// <returns>The client ID list.</returns>
         public string[] GetAcceptedClients()
         {
             return _acceptedClients.Keys.ToArray();
@@ -106,17 +124,19 @@ namespace app.TcpOperations
         /// <summary>
         /// Write data to the target client.
         /// </summary>
-        /// <param name="clientId">The client ID</param>
-        /// <param name="buffer">The data buffer</param>
-        /// <param name="offset">The offset in the buffer</param>
-        /// <param name="length">The length of data to write</param>
+        /// <param name="clientId">The client ID.</param>
+        /// <param name="buffer">The data buffer.</param>
+        /// <param name="offset">The offset in the buffer.</param>
+        /// <param name="length">The length of data to write.</param>
         /// <returns></returns>
-        public async Task WriteToClientAsync(string clientId, byte[] buffer, int offset, int length)
+        public async Task WriteToClientAsync(string clientId,
+                                             byte[] buffer,
+                                             int offset,
+                                             int length)
         {
             if (!_acceptedClients.TryGetValue(clientId, out var acceptedClient))
             {
-                _logger.Log(LogLevel.Warning, $"Client {clientId} is not in accepted client list. Will not perform writing data.");
-                return;
+                throw new InvalidOperationException($"Client {clientId} is not in accepted client list. Will not perform writing data.");
             }
 
             await acceptedClient.WriteAsync(buffer, offset, length);
@@ -158,6 +178,8 @@ namespace app.TcpOperations
             AcceptedClient acceptedClient = null;
             TcpClient tcpClient = null;
             NetworkStream networkStream = null;
+            SslStream sslStream = null;
+            BufferedStream bufferedStream = null;
             string clientId = string.Empty;
 
             try
@@ -175,20 +197,49 @@ namespace app.TcpOperations
 
                 _logger.Log(LogLevel.Debug, $"Client {clientId} is connected. Start receiving....");
 
-                networkStream = tcpClient.GetStream();
+                (networkStream, sslStream) = TcpUtilities.GetTargetStream(tcpClient, _serverCert != null, ValidateClientCertificate);
+
+                // Start TLS handshaking if sslStream object is obtained.
+                // Let OS choose the best SSL protocol.
+                // TODO: Change the SSL protocols accordingly.
+                if (sslStream != null)
+                {
+                    await sslStream.AuthenticateAsServerAsync(_serverCert, clientCertificateRequired: _clientCertificateRequired,
+                        enabledSslProtocols: SslProtocols.None, checkCertificateRevocation: true);
+                }
+
+                if (!TcpUtilities.CheckSslStream(sslStream, _clientCertificateRequired))
+                {
+                    throw new AuthenticationException("SSL stream is not valid");
+                }
 
                 // Track this client.
-                acceptedClient = new AcceptedClient(_logger, clientId, networkStream);
+                bufferedStream = (sslStream != null) ? new BufferedStream(sslStream) : new BufferedStream(networkStream);
+                acceptedClient = new AcceptedClient(_logger, clientId, bufferedStream);
                 _acceptedClients.TryAdd(clientId, acceptedClient);
 
-                // Start the loop to keep processing the incoming data from the client.
-                var buffer = new Byte[256];
-                int len;
-                while ((len = await networkStream.ReadAsync(buffer.AsMemory(0, buffer.Length), CancellationToken.None)) != 0 &&
-                    !_isExitSignaled)
-                {
-                    acceptedClient.ProcessData(buffer, len);
-                }
+                await ReceiveAndProcessDataAsync(acceptedClient, networkStream, sslStream);
+            }
+            catch (Exception e)
+            {
+                var loglevel = (e is OperationCanceledException || e is SocketException || e is IOException) ?
+                    LogLevel.Trace : LogLevel.Debug;
+                _logger.Log(loglevel, $"{e}");
+            }
+            finally
+            {
+                acceptedClient?.Dispose();
+                networkStream?.Close();
+                sslStream?.Close();
+                bufferedStream?.Close();
+                tcpClient?.Close();
+                networkStream?.Dispose();
+                sslStream?.Dispose();
+                bufferedStream?.Dispose();
+                tcpClient?.Dispose();
+
+                // Remove this from tracking.
+                _acceptedClients.TryRemove(clientId, out _);
 
                 if (_isExitSignaled)
                 {
@@ -199,19 +250,58 @@ namespace app.TcpOperations
                     _logger.Log(LogLevel.Debug, $"Client {clientId} finished connection.");
                 }
             }
-            catch (Exception e)
-            {
-                _logger.Log(LogLevel.Trace, $"{e}");
-            }
-            finally
-            {
-                acceptedClient?.Dispose();
-                networkStream?.Close();
-                tcpClient?.Close();
+        }
 
-                // Remove this from tracking.
-                _acceptedClients.TryRemove(clientId, out _);
+        /// <summary>
+        /// Start the loop to keep processing the incoming data from the client.
+        /// </summary>
+        /// <param name="acceptedClient">The client.</param>
+        /// <param name="networkStream">The network stream for the client.</param>
+        /// <param name="sslStream">The SSL stream for the client.</param>
+        /// <returns></returns>
+        private async Task ReceiveAndProcessDataAsync(AcceptedClient acceptedClient,
+                                                      NetworkStream networkStream,
+                                                      SslStream sslStream)
+        {
+            var buffer = new Byte[256];
+            int len;
+            if (sslStream != null)
+            {
+                while ((len = await sslStream.ReadAsync(buffer.AsMemory(0, buffer.Length), CancellationToken.None)) != 0 &&
+                    !_isExitSignaled)
+                {
+                    acceptedClient.ProcessData(buffer, len);
+                }
             }
+            else
+            {
+                while ((len = await networkStream.ReadAsync(buffer.AsMemory(0, buffer.Length), CancellationToken.None)) != 0 &&
+                    !_isExitSignaled)
+                {
+                    acceptedClient.ProcessData(buffer, len);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies the remote Secure Sockets Layer (SSL) certificate used for authentication
+        /// </summary>
+        /// <param name="sender">An object that contains state information for this validation.</param>
+        /// <param name="certificate">The certificate used to authenticate the remote party.</param>
+        /// <param name="chain">The chain of certificate authorities associated with the remote certificate.</param>
+        /// <param name="sslPolicyErrors">One or more errors associated with the remote certificate.</param>
+        /// <returns>True if the incoming certificate is accepted.</returns>
+        private bool ValidateClientCertificate(object sender,
+                                               X509Certificate certificate,
+                                               X509Chain chain,
+                                               SslPolicyErrors sslPolicyErrors)
+        {
+            if (!_clientCertificateRequired)
+            {
+                return true;
+            }
+
+            return TcpUtilities.ValidateCertificate(certificate, sslPolicyErrors, _clientParentCert);
         }
     }
 }

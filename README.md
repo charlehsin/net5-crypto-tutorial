@@ -40,26 +40,27 @@ This shows sample codes for the following:
    - https://docs.microsoft.com/en-us/dotnet/api/system.net.sockets.tcplistener?view=net-5.0
    - https://docs.microsoft.com/en-us/dotnet/api/system.net.sockets.tcpclient?view=net-5.0
    - https://docs.microsoft.com/en-us/dotnet/api/system.net.security.sslstream?view=net-5.0
+   - https://stackoverflow.com/questions/48198/how-can-you-find-out-which-process-is-listening-on-a-tcp-or-udp-port-on-windows
 
 ## Folder structure
 
-- Certificates folder: This includes codes to
+- app\Certificates folder: This includes codes to
    - Create self-signed certificate.
    - Issue signed certificate.
    - Get certificate information.
    - Validate the certificate chain.
    - Get certificate object with the target storage flag.
-- CertificateStore folder: This includes codes to
+- app\CertificateStore folder: This includes codes to
    - Find certificate from cert store by name or by thumbprint.
    - Add certificate into cert store.
    - Remove certificate from cert store.
-- EncryptionDecryption folder: This includes codes to
+- app\EncryptionDecryption folder: This includes codes to
    - Do symmetric AES GCM encryption and decryption.
    - Do asymmetric RSA encryption and descryption.
-- Signature folder: This includes codes to
+- app\Signature folder: This includes codes to
    - Sign the hash using RSA PKCS#1, and validate it.
    - Sign the message using CMS PKCS#7, and validate it.
-- TcpOperations folder: This includes codes to
+- app\TcpOperations folder: This includes codes to
    - Create TCP listener with the choice to use TLS
    - Create TCP client with the choice to use TLS
 

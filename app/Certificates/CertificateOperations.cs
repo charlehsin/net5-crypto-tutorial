@@ -13,8 +13,8 @@ namespace app.Certificates
         /// <summary>
         /// Get the info string for the target certificate.
         /// </summary>
-        /// <param name="cert"></param>
-        /// <returns>info</returns>
+        /// <param name="cert">The target certificate.</param>
+        /// <returns>The certificate info.</returns>
         public static string GetCertInfo(X509Certificate2 cert)
         {
             var info = $"subject: {cert.Subject}{Environment.NewLine}" +
@@ -73,11 +73,11 @@ namespace app.Certificates
         /// <summary>
         /// Create a self-signed certificate.
         /// </summary>
-        /// <param name="keySize"></param>
-        /// <param name="commonName"></param>
-        /// <param name="notBefore"></param>
-        /// <param name="notAfter"></param>
-        /// <returns>X509Certificate2</returns>
+        /// <param name="keySize">The RAS key size in bits.</param>
+        /// <param name="commonName">The certificate common name.</param>
+        /// <param name="notBefore">The certificate starting time.</param>
+        /// <param name="notAfter">The certificate expiration time.</param>
+        /// <returns>The X509Certificate2 certificate.</returns>
         public static X509Certificate2 CreateSelfSignedCert(int keySize, string commonName,
             System.DateTimeOffset notBefore, System.DateTimeOffset notAfter)
         {
@@ -113,15 +113,15 @@ namespace app.Certificates
         /// <summary>
         /// Issue a signed certificate by the parent cert.
         /// </summary>
-        /// <param name="parentCert"></param>
-        /// <param name="keySize"></param>
-        /// <param name="commonName"></param>
-        /// <param name="flags"></param>
-        /// <param name="oidCollection"></param>
-        /// <param name="notBefore"></param>
-        /// <param name="notAfter"></param>
-        /// <param name="includePrivateKey"></param>
-        /// <returns>X509Certificate2</returns>
+        /// <param name="parentCert">The certificate used to sign this certificate.</param>
+        /// <param name="keySize">The RAS key size in bits.</param>
+        /// <param name="commonName">The certificate common name.</param>
+        /// <param name="flags">The certificate key usage flags.</param>
+        /// <param name="oidCollection">The enhanced key usages.</param>
+        /// <param name="notBefore">The certificate starting time.</param>
+        /// <param name="notAfter">The certificate expiration time.</param>
+        /// <param name="includePrivateKey">True to include the private key in the returned object.</param>
+        /// <returns>The X509Certificate2 certificate.</returns>
         public static X509Certificate2 IssueSignedCert(X509Certificate2 parentCert, int keySize, string commonName,
             X509KeyUsageFlags flags, OidCollection oidCollection,
             System.DateTimeOffset notBefore, System.DateTimeOffset notAfter,
@@ -173,9 +173,9 @@ namespace app.Certificates
         /// <summary>
         /// Get a certificate with the target key storage flags based on the original cert.
         /// </summary>
-        /// <param name="cert"></param>
-        /// <param name="flags"></param>
-        /// <returns>X509Certificate2</returns>
+        /// <param name="cert">The original certificate.</param>
+        /// <param name="flags">The target key storage flags.</param>
+        /// <returns>The new  X509Certificate2 certificate.</returns>
         public static X509Certificate2 GetCertWithStorageFlags(X509Certificate2 cert, X509KeyStorageFlags flags)
         {
             return new X509Certificate2(
@@ -188,10 +188,10 @@ namespace app.Certificates
         /// Validate the cert chain.
         /// If parentCert is not null, it will be added to the customer trusted store to be used in validation.
         /// </summary>
-        /// <param name="cert"></param>
-        /// <param name="parentCert"></param>
-        /// <param name="revocationMode"></param>
-        /// <param name="revocationFlag"></param>
+        /// <param name="cert">The certificate to be checked.</param>
+        /// <param name="parentCert">The certificate used to sign the target certificate.</param>
+        /// <param name="revocationMode">The revocation mode used to build the chain.</param>
+        /// <param name="revocationFlag">The revocation flag used to build the chain.</param>
         /// <returns>(valid or not, the chain status array)</returns>
         public static (bool, X509ChainStatus[]) ValidateCertificateChain(X509Certificate2 cert, X509Certificate2 parentCert,
             X509RevocationMode revocationMode, X509RevocationFlag revocationFlag)

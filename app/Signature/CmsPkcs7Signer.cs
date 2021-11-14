@@ -7,11 +7,11 @@ namespace app.Signature
     public class CmsPkcs7Signer
     {
         /// <summary>
-        /// Sign the target message.
+        /// Sign and encode the target message.
         /// </summary>
-        /// <param name="signerCert"></param>
-        /// <param name="message"></param>
-        /// <returns>encoded message</returns>
+        /// <param name="signerCert">The certificate used to sign the message.</param>
+        /// <param name="message">The message to be signed and encoded.</param>
+        /// <returns>The encoded message.</returns>
         public static byte[] Sign(X509Certificate2 signerCert, byte[] message)
         {
             var contentInfo = new ContentInfo(message);
@@ -27,7 +27,7 @@ namespace app.Signature
         /// <summary>
         /// Verify the encoded message.
         /// </summary>
-        /// <param name="encodedMessage"></param>
+        /// <param name="encodedMessage">The encoded message.</param>
         /// <param name="originalMessage">Return the original message if the return is true.</param>
         /// <param name="signerCert">Return the signer cert if the return is true.</param>
         /// <returns>True if this is valid.</returns>

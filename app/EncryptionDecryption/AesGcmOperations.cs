@@ -10,10 +10,10 @@ namespace app.EncryptionDecryption
         public readonly static int TagLengthInBytes = AesGcm.TagByteSizes.MaxSize;
 
         /// <summary>
-        /// Generate the AES GCM key.
+        /// Generate the AES GCM key randomly.
         /// </summary>
-        /// <param name="keyLengthInBytes"></param>
-        /// <returns>key</returns>
+        /// <param name="keyLengthInBytes">The target key length.</param>
+        /// <returns>The generated key.</returns>
         public static byte[] GenerateKey(int keyLengthInBytes)
         {
             var key = new byte[keyLengthInBytes];
@@ -24,11 +24,11 @@ namespace app.EncryptionDecryption
         /// <summary>
         /// Encrypt the target.
         /// </summary>
-        /// <param name="key"></param>
-        /// <param name="target"></param>
-        /// <param name="nonceLengthInBytes"></param>
-        /// <param name="tagLengthInBytes"></param>
-        /// <returns>byte array with nonce, tag, cipher in order</returns>
+        /// <param name="key">The AES GCM key.</param>
+        /// <param name="target">The target to be encrypted.</param>
+        /// <param name="nonceLengthInBytes">The nonce length.</param>
+        /// <param name="tagLengthInBytes">The tag length.</param>
+        /// <returns>The byte array with nonce, tag, cipher in order.</returns>
         public static byte[] Encrypt(byte[] key, byte[] target,
             int nonceLengthInBytes, int tagLengthInBytes)
         {
@@ -45,11 +45,11 @@ namespace app.EncryptionDecryption
         /// <summary>
         /// Decrypt the chiper.
         /// </summary>
-        /// <param name="cipherText"></param>
-        /// <param name="key"></param>
-        /// <param name="nonce"></param>
-        /// <param name="tag"></param>
-        /// <returns>decrypted result</returns>
+        /// <param name="cipher">The cipher to be decrypted.</param>
+        /// <param name="key">The AES GCM key.</param>
+        /// <param name="nonce">The nonce.</param>
+        /// <param name="tag">The tag.</param>
+        /// <returns>The decrypted result.</returns>
         public static byte[] Decrypt(byte[] cipher, byte[] key,
             byte[] nonce, byte[] tag)
         {
@@ -62,10 +62,12 @@ namespace app.EncryptionDecryption
         }
 
         /// <summary>
-        /// Generate the nonce.
+        /// Generate the nonce randomly.
+        /// Note: The best way to create the nonce is to make usre that you onlyl use the nonce once for encryption.
+        /// Thus, generating the nonce randomly is not optimal.
         /// </summary>
-        /// <param name="nonceLengthInBytes"></param>
-        /// <returns>nonce</returns>
+        /// <param name="nonceLengthInBytes">The nonce length.</param>
+        /// <returns>The nonce.</returns>
         private static byte[] GenerateNonce(int nonceLengthInBytes)
         {
             var nonce = new byte[nonceLengthInBytes];
